@@ -32,6 +32,9 @@ class SingleVisualizationModel(nn.Module):
             nn.Linear(units, input_dims)
         )
 
-    def forward(self, x):
-        # defind model function
-        return x
+    def forward(self, edge_to, edge_from):
+        outputs = dict()
+        outputs["umap"] = None
+        outputs["recon"] = None
+
+        return outputs
