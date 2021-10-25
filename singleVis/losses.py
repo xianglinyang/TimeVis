@@ -1,11 +1,10 @@
 import torch
 from torch import nn
-from umap.umap_ import find_ab_params
-
 from utils import convert_distance_to_probability, compute_cross_entropy
 
 """Losses modules for preserving four propertes"""
-# https://github.com/ynjnpa/VocGAN/blob/5339ee1d46b8337205bec5e921897de30a9211a1/utils/stft_loss.py
+# https://github.com/ynjnpa/VocGAN/blob/5339ee1d46b8337205bec5e921897de30a9211a1/utils/stft_loss.py for losses module
+
 
 class UmapLoss(nn.Module):
     def __init__(self, negative_sample_rate, _a, _b, repulsion_strength=1.0):
