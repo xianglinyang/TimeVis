@@ -65,9 +65,17 @@ class ReconstructionLoss(nn.Module):
         return (loss1 + loss2)/2
 
 
-# class SingleVisLoss(nn.Module):
-#     def __init__(self):
-#         super(SingleVisLoss, self).__init__()
-#         self.umap_loss = UmapLoss()
-#         self.recon_loss = ReconstructionLoss()
-#     def forward(self,):
+class SingleVisLoss(nn.Module):
+    def __init__(self, umap_loss, recon_loss, lambd):
+        super(SingleVisLoss, self).__init__()
+        self.umap_loss = umap_loss
+        self.recon_loss = recon_loss
+        self.lambd = lambd
+
+    def forward(self, edge_to, edge_from, embedding_to, embedding_from, recon_to, recon_from, alpha_to, alpha_from):
+        recon_l = self.recon_loss(edge_to, edge_from, recon_to, recon_from, alpha_to, alpha_from)
+        umap_l = self.umap_loss(embedding_to, embedding_from)
+
+        loss = umap_l + self.lambd * recon_l
+
+        return loss
