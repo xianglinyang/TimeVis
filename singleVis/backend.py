@@ -121,9 +121,9 @@ def boundary_wise_complex(train_data, border_centers, n_neighbors):
     return bw_complex, sigmas, rhos
 
 
-def construct_edge_dataset(X_input, vr_complex, bw_complex):
+def construct_step_edge_dataset(X_input, vr_complex, bw_complex):
     """
-    construct the mixed edge dataset
+    construct the mixed edge dataset for one time step
         connect border points and train data(both direction)
     :param X_input: tuple (train_data, border_points)
     :param vr_complex: Vietoris-Rips complex
@@ -145,4 +145,6 @@ def construct_edge_dataset(X_input, vr_complex, bw_complex):
     weight = np.concatenate((vr_head, bw_weight), axis=0)
 
     return head, tail, weight
+
+
 
