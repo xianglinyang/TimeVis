@@ -46,9 +46,6 @@ class SingleVisTrainer:
         self.model.eval()
         print('loss:{:.4f}'.format(sum(all_loss) / len(all_loss)))
 
-    def eval(self):
-        pass
-
     def save(self, name="singleVisModel"):
         """
         save all parameters...
