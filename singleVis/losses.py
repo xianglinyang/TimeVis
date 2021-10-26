@@ -56,8 +56,10 @@ class ReconstructionLoss(nn.Module):
         self._beta = beta
 
     def forward(self, edge_to, edge_from, recon_to, recon_from, alpha_to, alpha_from):
-        loss1 = torch.mean(torch.mean(torch.multiply(torch.pow((1+alpha_to), self._beta), torch.pow(edge_to - recon_to, 2)), 1))
-        loss2 = torch.mean(torch.mean(torch.multiply(torch.pow((1+alpha_from), self._beta), torch.pow(edge_from - recon_from, 2)), 1))
+        # loss1 = torch.mean(torch.mean(torch.multiply(torch.pow((1+alpha_to), self._beta), torch.pow(edge_to - recon_to, 2)), 1))
+        # loss2 = torch.mean(torch.mean(torch.multiply(torch.pow((1+alpha_from), self._beta), torch.pow(edge_from - recon_from, 2)), 1))
+        loss1 = torch.mean(torch.mean(torch.pow(edge_to - recon_to, 2), 1))
+        loss2 = torch.mean(torch.mean(torch.pow(edge_from - recon_from, 2), 1))
         return (loss1 + loss2)/2
 
 
@@ -68,8 +70,13 @@ class SingleVisLoss(nn.Module):
         self.recon_loss = recon_loss
         self.lambd = lambd
 
-    def forward(self, edge_to, edge_from, embedding_to, embedding_from, recon_to, recon_from, alpha_to, alpha_from):
-        recon_l = self.recon_loss(edge_to, edge_from, recon_to, recon_from, alpha_to, alpha_from)
+    def forward(self, edge_to, edge_from, outputs):
+        embedding_to, embedding_from = outputs["umap"]
+        recon_to, recon_from = outputs["recon"]
+        # , alpha_to, alpha_from
+
+        # recon_l = self.recon_loss(edge_to, edge_from, recon_to, recon_from, alpha_to, alpha_from)
+        recon_l = self.recon_loss(edge_to, edge_from, recon_to, recon_from)
         umap_l = self.umap_loss(embedding_to, embedding_from)
 
         loss = umap_l + self.lambd * recon_l

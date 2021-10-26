@@ -4,6 +4,7 @@ import os
 import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.data import WeightedRandomSampler
+from umap.umap_ import find_ab_params
 
 from SingleVisualizationModel import SingleVisualizationModel
 from losses import SingleVisLoss, UmapLoss, ReconstructionLoss
@@ -22,8 +23,15 @@ TEMPORAL_PERSISTANT = 2
 NUMS = 5    # how many epoch should we go through for one pass
 PATIENT = 4
 
-model = SingleVisualizationModel()
-criterion = SingleVisLoss()
+
+model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256)
+negative_sample_rate = 5.
+min_dist = .1
+_a, _b = find_ab_params(1.0, min_dist)
+umap_loss_fn = UmapLoss(negative_sample_rate, _a, _b, repulsion_strength=1.0)
+recon_loss_fn = ReconstructionLoss()
+criterion = SingleVisLoss(umap_loss_fn, recon_loss_fn, lambd=1.)
+
 optimizer = torch.optim.Adam(model.parameters(), lr=.01, weight_decay=1e-5)
 # optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=8, gamma=.1)
