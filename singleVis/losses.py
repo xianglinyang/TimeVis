@@ -39,10 +39,6 @@ class UmapLoss(nn.Module):
         probabilities_graph = torch.cat(
             (torch.ones(batch_size), torch.zeros(batch_size * self._negative_sample_rate)), dim=0,
         )
-        # true probabilies in high-dimensional space
-        # probabilities = torch.cat(
-        #     (torch.squeeze(weights), torch.zeros(batch_size * self._negative_sample_rate)), dim=0,
-        # )
 
         # compute cross entropy
         (_, _, ce_loss) = compute_cross_entropy(
