@@ -34,7 +34,12 @@ class SingleVisualizationModel(nn.Module):
 
     def forward(self, edge_to, edge_from):
         outputs = dict()
-        outputs["umap"] = None
-        outputs["recon"] = None
+        embedding_to = self.encoder(edge_to)
+        embedding_from = self.encoder(edge_from)
+        recon_to = self.decoder(embedding_to)
+        recon_from = self.decoder(embedding_from)
+
+        outputs["umap"] = (embedding_to, embedding_from)
+        outputs["recon"] = (recon_to, recon_from)
 
         return outputs
