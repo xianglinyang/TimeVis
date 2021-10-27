@@ -45,7 +45,7 @@ def get_graph_elements(graph_, n_epochs):
     graph.sum_duplicates()
     # number of vertices in dataset
     n_vertices = graph.shape[1]
-    # get the number of epochs based on the size of the dataset
+    # # get the number of epochs based on the size of the dataset
     if n_epochs is None:
         # For smaller datasets we can use more epochs
         if graph.shape[0] <= 10000:
@@ -124,7 +124,7 @@ def boundary_wise_complex(train_data, border_centers, n_neighbors):
     return bw_complex, sigmas, rhos, knn_indices
 
 
-def construct_step_edge_dataset(vr_complex, bw_complex):
+def construct_step_edge_dataset(vr_complex, bw_complex, n_epochs):
     """
     construct the mixed edge dataset for one time step
         connect border points and train data(both direction)
@@ -134,9 +134,9 @@ def construct_step_edge_dataset(vr_complex, bw_complex):
     :return: edge dataset
     """
     # get data from graph
-    _, vr_head, vr_tail, vr_weight, _ = get_graph_elements(vr_complex)
+    _, vr_head, vr_tail, vr_weight, _ = get_graph_elements(vr_complex, n_epochs)
     # get data from graph
-    _, bw_head, bw_tail, bw_weight, _ = get_graph_elements(bw_complex)
+    _, bw_head, bw_tail, bw_weight, _ = get_graph_elements(bw_complex, n_epochs)
 
     head = np.concatenate((vr_head, bw_head), axis=0)
     tail = np.concatenate((vr_tail, bw_tail), axis=0)
@@ -155,7 +155,7 @@ def knn_dists(X, indices, knn_indices):
 @numba.jit()
 def fast_knn_dists(X, knn_indices):
     knn_dists = np.zeros(knn_indices.shape)
-    for i in len(X):
+    for i in range(len(X)):
         for nn in knn_indices[i]:
             if nn == -1:
                 continue
@@ -179,30 +179,52 @@ def construct_temporal_edge_dataset(X, n_vertices, persistent, time_steps, knn_i
     rows = np.zeros(1, dtype=np.int32)
     cols = np.zeros(1, dtype=np.int32)
     vals = np.zeros(1, dtype=np.float32)
+    n_all = int(n_vertices * time_steps * 1.1)
+    k = knn_indices.shape[1]
     # forward
     for window in range(1, persistent + 1, 1):
         for step in range(0, time_steps - window, 1):
-            knn_indices_t = - np.ones(knn_indices.shape)
-            knn_indices_t[int(n_vertices * 1.1 * step): int(n_vertices * 1.1 * step + n_vertices)] = \
-                knn_indices[int(n_vertices * 1.1 * (step + window)): int(n_vertices * 1.1 * (step + window) + n_vertices)]
-            knn_dists_t = fast_knn_dists(X, knn_indices_t)
+            knn_indices_in = - np.ones((n_all, k))
+            knn_dist = np.zeros((n_all, k))
 
-            rows_t, cols_t, vals_t = compute_membership_strengths(knn_indices_t, knn_dists_t, sigmas, rhos, return_dists=False)
-            rows = np.concatenate((rows, rows_t), axis=0)
-            cols = np.concatenate((cols, cols_t), axis=0)
-            vals = np.concatenate((vals, vals_t), axis=0)
+            knn_indices_in[int(n_vertices * step * 1.1): int(n_vertices * step * 1.1 + n_vertices)] = \
+                knn_indices[int(n_vertices * (step + window)): int(n_vertices * (step + window + 1))]
+            knn_indices_in = knn_indices_in.astype('int')
+
+            indices = np.arange(int(n_vertices * 1.1 * step), int(n_vertices * 1.1 * step + n_vertices), 1)
+            knn_indices_tmp = knn_indices[int(n_vertices * (step + window)): int(n_vertices * (step + window + 1))]
+            knn_dists_t = knn_dists(X, indices, knn_indices_tmp)
+
+            knn_dist[int(n_vertices * 1.1 * step): int(n_vertices * 1.1 * step + n_vertices)] = knn_dists_t
+            knn_dist = knn_dist.astype('float32')
+
+            rows_t, cols_t, vals_t, _ = compute_membership_strengths(knn_indices_in, knn_dist, sigmas, rhos, return_dists=False)
+            idxs = vals_t > 0
+            rows = np.concatenate((rows, rows_t[idxs]), axis=0)
+            cols = np.concatenate((cols, cols_t[idxs]), axis=0)
+            vals = np.concatenate((vals, vals_t[idxs]), axis=0)
     # backward
     for window in range(1, persistent + 1, 1):
         for step in range(time_steps-1, 0 + window, -1):
-            knn_indices_t = - np.ones(knn_indices.shape)
-            knn_indices_t[int(n_vertices * 1.1 * step): int(n_vertices * 1.1 * step + n_vertices)] = \
-                knn_indices[int(n_vertices * 1.1 * (step - window)): int(n_vertices * 1.1 * (step - window) + n_vertices)]
-            knn_dists_t = fast_knn_dists(X, knn_indices_t)
+            knn_indices_in = - np.ones((n_all, k))
+            knn_dist = np.zeros((n_all, k))
 
-            rows_t, cols_t, vals_t = compute_membership_strengths(knn_indices_t, knn_dists_t, sigmas, rhos, return_dists=False)
-            rows = np.concatenate((rows, rows_t), axis=0)
-            cols = np.concatenate((cols, cols_t), axis=0)
-            vals = np.concatenate((vals, vals_t), axis=0)
+            knn_indices_in[int(n_vertices * step * 1.1): int(n_vertices * step * 1.1 + n_vertices)] = \
+                knn_indices[int(n_vertices * (step - window)): int(n_vertices * (step - window + 1))]
+            knn_indices_in = knn_indices_in.astype('int')
+
+            indices = np.arange(int(n_vertices * 1.1 * step), int(n_vertices * 1.1 * step + n_vertices), 1)
+            knn_indices_tmp = knn_indices[int(n_vertices * (step - window)): int(n_vertices * (step - window + 1))]
+            knn_dists_t = knn_dists(X, indices, knn_indices_tmp)
+
+            knn_dist[int(n_vertices * 1.1 * step): int(n_vertices * 1.1 * step + n_vertices)] = knn_dists_t
+            knn_dist = knn_dist.astype('float32')
+
+            rows_t, cols_t, vals_t, _ = compute_membership_strengths(knn_indices_in, knn_dist, sigmas, rhos, return_dists=False)
+            idxs = vals_t > 0
+            rows = np.concatenate((rows, rows_t[idxs]), axis=0)
+            cols = np.concatenate((cols, cols_t[idxs]), axis=0)
+            vals = np.concatenate((vals, vals_t[idxs]), axis=0)
 
     return rows, cols, vals
 

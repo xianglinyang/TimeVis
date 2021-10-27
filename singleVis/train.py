@@ -36,12 +36,13 @@ optimizer = torch.optim.Adam(model.parameters(), lr=.01, weight_decay=1e-5)
 # optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=8, gamma=.1)
 
-content_path = "E:\\DVI_exp_data\\resnet18_cifar10"
+content_path = "E:\\DVI_exp_data\\TemporalExp\\resnet18_cifar10"
 sys.path.append(content_path)
 from Model.model import *
 net = resnet18()
 classes = ("airplane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck")
 selected_idxs = np.random.choice(np.arange(LEN), size=LEN//10, replace=False)
+# selected_border_idxs = np.random.choice(np.arange(LEN//10), size=LEN//100, replace=False)
 
 # TODO construct spatio-temporal complex and get edges
 # dummy input
@@ -57,7 +58,7 @@ n_vertices = -1
 
 # each time step
 
-for t in range(TIME_STEPS):
+for t in range(1, TIME_STEPS+1, 1):
     # load train data and border centers
     train_data_loc = os.path.join(os.path.join(content_path, "Model"), "Epoch_{:d}".format(t), "train_data.npy")
     try:
@@ -69,17 +70,18 @@ for t in range(TIME_STEPS):
     border_centers_loc = os.path.join(os.path.join(content_path, "Model"), "Epoch_{:d}".format(t),
                                                    "advance_border_centers.npy")
     try:
-        border_centers = np.load(border_centers_loc)
+        border_centers = np.load(border_centers_loc)[:500]
     except Exception as e:
         print("no border points saved for Epoch {}".format(t))
         continue
 
     complex, sigmas_t1, rhos_t1, knn_idxs_t = fuzzy_complex(train_data, 15)
     bw_complex, sigmas_t2, rhos_t2, _ = boundary_wise_complex(train_data, border_centers, 15)
-    edge_to_t, edge_from_t, weight_t = construct_step_edge_dataset((train_data, border_centers), complex, bw_complex)
+    edge_to_t, edge_from_t, weight_t = construct_step_edge_dataset(complex, bw_complex, NUMS)
     sigmas_t = np.concatenate((sigmas_t1, sigmas_t2[len(sigmas_t1):]), axis=0)
     rhos_t = np.concatenate((rhos_t1, rhos_t2[len(rhos_t1):]), axis=0)
     fitting_data = np.concatenate((train_data, border_centers), axis=0)
+    increase_idx = (t-1) * int(len(train_data) * 1.1)
     if edge_to is None:
         edge_to = edge_to_t
         edge_from = edge_from_t
@@ -92,7 +94,6 @@ for t in range(TIME_STEPS):
         n_vertices = len(train_data)
     else:
         # every round, we need to add len(data) to edge_to(as well as edge_from) index
-        increase_idx = t * len(fitting_data)
         edge_to = np.concatenate((edge_to, edge_to_t + increase_idx), axis=0)
         edge_from = np.concatenate((edge_from, edge_from_t + increase_idx), axis=0)
         # normalize weight to be in range (0, 1)
@@ -104,14 +105,14 @@ for t in range(TIME_STEPS):
         feature_vectors = np.concatenate((feature_vectors, fitting_data), axis=0)
         knn_indices = np.concatenate((knn_indices, knn_idxs_t+increase_idx), axis=0)
 
+# boundary points...
 heads, tails, vals = construct_temporal_edge_dataset(X=feature_vectors,
-                                                        n_vertices=n_vertices,
-                                                        persistent=TEMPORAL_PERSISTANT,
-                                                        time_steps=TIME_STEPS,
-                                                        knn_indices=knn_indices,
-                                                        sigmas=sigmas,
-                                                        rhos=rhos
-                                                        )
+                                                     n_vertices=n_vertices,
+                                                     persistent=TEMPORAL_PERSISTANT,
+                                                     time_steps=TIME_STEPS,
+                                                     knn_indices=knn_indices,
+                                                     sigmas=sigmas,
+                                                     rhos=rhos)
 weight = np.concatenate((weight, vals), axis=0)
 probs_t = vals / vals.max()
 probs = np.concatenate((probs, probs_t), axis=0)
@@ -122,15 +123,14 @@ dataset = DataHandler(edge_to, edge_from, feature_vectors)
 
 
 result = np.zeros(weight.shape[0], dtype=np.float64)
-n_samples = np.sum(NUMS * probs)
+n_samples = int(np.sum(NUMS * probs) // 1)
 
 sampler = WeightedRandomSampler(probs, n_samples, replacement=False)
 edge_loader = DataLoader(dataset, batch_size=1000, sampler=sampler)
 
-
 trainer = SingleVisTrainer(model, criterion, optimizer, edge_loader=edge_loader, DEVICE=DEVICE)
 patient = PATIENT
-for epoch in EPOCH_NUMS:
+for epoch in range(EPOCH_NUMS):
     prev_loss = trainer.loss
     loss = trainer.train_step()
     # early stop, check whether converge or not
