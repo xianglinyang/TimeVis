@@ -24,7 +24,11 @@ class SingleVisTrainer:
         self.optimizer = optimizer
         self.DEVICE = DEVICE
         self.edge_loader = edge_loader
-        self.loss = None
+        self._loss = 100.0
+
+    @property
+    def loss(self):
+        return self._loss
 
     def train_step(self):
         self.model.train()
@@ -32,8 +36,8 @@ class SingleVisTrainer:
         for data in self.edge_loader:
             edge_to, edge_from = data
 
-            edge_to.to(self.DEVICE)
-            edge_from.to(self.DEVICE)
+            edge_to.to(device=self.DEVICE, dtype=torch.float32)
+            edge_from.to(device=self.DEVICE, dtype=torch.float32)
 
             outputs = self.model(edge_to, edge_from)
             loss = self.criterion(outputs)
@@ -42,7 +46,7 @@ class SingleVisTrainer:
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-        self.loss = sum(all_loss) / len(all_loss)
+        self._loss = sum(all_loss) / len(all_loss)
         self.model.eval()
         print('loss:{:.4f}'.format(sum(all_loss) / len(all_loss)))
         return self.loss
