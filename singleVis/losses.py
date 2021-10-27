@@ -7,13 +7,22 @@ from utils import convert_distance_to_probability, compute_cross_entropy
 
 
 class UmapLoss(nn.Module):
-    def __init__(self, negative_sample_rate, _a, _b, repulsion_strength=1.0):
+    def __init__(self, negative_sample_rate, _a=1.0, _b=1.0, repulsion_strength=1.0, device="cuda:0"):
         super(UmapLoss, self).__init__()
 
         self._negative_sample_rate = negative_sample_rate
         self._a = _a,
         self._b = _b,
         self._repulsion_strength = repulsion_strength
+        self.DEVICE = torch.device(device)
+
+    @property
+    def a(self):
+        return self._a[0]
+
+    @property
+    def b(self):
+        return self._b[0]
 
     def forward(self, embedding_to, embedding_from):
         batch_size = embedding_to.shape[0]
@@ -32,13 +41,15 @@ class UmapLoss(nn.Module):
             dim=0,
         )
         probabilities_distance = convert_distance_to_probability(
-            distance_embedding, self._a, self._b
+            distance_embedding, self.a, self.b
         )
+        probabilities_distance = probabilities_distance.to(self.DEVICE)
 
         # set true probabilities based on negative sampling
         probabilities_graph = torch.cat(
             (torch.ones(batch_size), torch.zeros(batch_size * self._negative_sample_rate)), dim=0,
         )
+        probabilities_graph = probabilities_graph.to(device=self.DEVICE)
 
         # compute cross entropy
         (_, _, ce_loss) = compute_cross_entropy(
@@ -55,7 +66,8 @@ class ReconstructionLoss(nn.Module):
         super(ReconstructionLoss, self).__init__()
         self._beta = beta
 
-    def forward(self, edge_to, edge_from, recon_to, recon_from, alpha_to, alpha_from):
+    # def forward(self, edge_to, edge_from, recon_to, recon_from, alpha_to, alpha_from):
+    def forward(self, edge_to, edge_from, recon_to, recon_from):
         # loss1 = torch.mean(torch.mean(torch.multiply(torch.pow((1+alpha_to), self._beta), torch.pow(edge_to - recon_to, 2)), 1))
         # loss2 = torch.mean(torch.mean(torch.multiply(torch.pow((1+alpha_from), self._beta), torch.pow(edge_from - recon_from, 2)), 1))
         loss1 = torch.mean(torch.mean(torch.pow(edge_to - recon_to, 2), 1))
@@ -81,4 +93,4 @@ class SingleVisLoss(nn.Module):
 
         loss = umap_l + self.lambd * recon_l
 
-        return loss
+        return umap_l, recon_l, loss

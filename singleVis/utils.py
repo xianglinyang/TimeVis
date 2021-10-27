@@ -2,7 +2,7 @@ import torch
 
 
 def convert_distance_to_probability(distances, a=1.0, b=1.0):
-    return 1.0 / (1.0 + a * distances ** (2 * b))
+    return 1.0 / (1.0 + a * torch.pow(distances, 2 * b))
 
 
 def compute_cross_entropy(
