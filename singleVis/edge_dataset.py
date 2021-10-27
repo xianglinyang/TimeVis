@@ -4,11 +4,10 @@ from PIL import Image
 
 # TODO two hierarchy index,
 class DataHandler(Dataset):
-    def __init__(self, edge_to, edge_from, feature_vector, time_step, transform=None):
+    def __init__(self, edge_to, edge_from, feature_vector, transform=None):
         self.edge_to = edge_to
         self.edge_from = edge_from
         self.data = feature_vector
-        self.time_step = time_step
         self.transform = transform
 
     def __getitem__(self, item):
