@@ -31,24 +31,31 @@ class SingleVisTrainer:
         return self._loss
 
     def train_step(self):
+        self.model.to(device=self.DEVICE)
         self.model.train()
         all_loss = []
+        umap_losses = []
+        recon_losses = []
         for data in self.edge_loader:
             edge_to, edge_from = data
 
-            edge_to.to(device=self.DEVICE, dtype=torch.float32)
-            edge_from.to(device=self.DEVICE, dtype=torch.float32)
+            edge_to = edge_to.to(device=self.DEVICE, dtype=torch.float32)
+            edge_from = edge_from.to(device=self.DEVICE, dtype=torch.float32)
 
             outputs = self.model(edge_to, edge_from)
-            loss = self.criterion(outputs)
+            umap_l, recon_l, loss = self.criterion(edge_to, edge_from, outputs)
             all_loss.append(loss.item())
+            umap_losses.append(umap_l.item())
+            recon_losses.append(recon_l.item())
             # ===================backward====================
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
         self._loss = sum(all_loss) / len(all_loss)
         self.model.eval()
-        print('loss:{:.4f}'.format(sum(all_loss) / len(all_loss)))
+        print('umap:{:.4f}\trecon_l:{:.4f}\tloss:{:.4f}'.format(sum(umap_losses) / len(umap_losses),
+                                                                sum(recon_losses) / len(recon_losses),
+                                                                sum(all_loss) / len(all_loss)))
         return self.loss
 
     def save(self, name="singleVisModel"):

@@ -25,16 +25,16 @@ PATIENT = 4
 
 
 model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256)
-negative_sample_rate = 5.
+negative_sample_rate = 5
 min_dist = .1
 _a, _b = find_ab_params(1.0, min_dist)
 umap_loss_fn = UmapLoss(negative_sample_rate, _a, _b, repulsion_strength=1.0)
-recon_loss_fn = ReconstructionLoss()
-criterion = SingleVisLoss(umap_loss_fn, recon_loss_fn, lambd=1.)
+recon_loss_fn = ReconstructionLoss(beta=1.0)
+criterion = SingleVisLoss(umap_loss_fn, recon_loss_fn, lambd=1/50.)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=.01, weight_decay=1e-5)
 # optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=8, gamma=.1)
+lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=.1)
 
 content_path = "E:\\DVI_exp_data\\TemporalExp\\resnet18_cifar10"
 sys.path.append(content_path)
@@ -131,6 +131,7 @@ edge_loader = DataLoader(dataset, batch_size=1000, sampler=sampler)
 trainer = SingleVisTrainer(model, criterion, optimizer, edge_loader=edge_loader, DEVICE=DEVICE)
 patient = PATIENT
 for epoch in range(EPOCH_NUMS):
+    print("====================\nepoch:{}\n=====================".format(epoch))
     prev_loss = trainer.loss
     loss = trainer.train_step()
     # early stop, check whether converge or not
@@ -142,4 +143,5 @@ for epoch in range(EPOCH_NUMS):
     else:
         patient = PATIENT
 
-trainer.save(name="cifar10_epoch_10")
+
+trainer.save(name="..//model//cifar10_epoch")
