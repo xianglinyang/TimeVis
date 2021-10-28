@@ -58,6 +58,17 @@ class SingleVisTrainer:
                                                                 sum(all_loss) / len(all_loss)))
         return self.loss
 
+    def load(self, name="singleVisModel"):
+        """
+        save all parameters...
+        :param name:
+        :return:
+        """
+        save_model = torch.load(name + '.pth')
+        self._loss = save_model["loss"].item()
+        self.model = self.model.load_state_dict(save_model["state_dict"])
+        self.optimizer = self.optimizer.load_state_dict(save_model["optimizer"])
+
     def save(self, name="singleVisModel"):
         """
         save all parameters...

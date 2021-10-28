@@ -131,7 +131,7 @@ edge_loader = DataLoader(dataset, batch_size=1000, sampler=sampler)
 trainer = SingleVisTrainer(model, criterion, optimizer, edge_loader=edge_loader, DEVICE=DEVICE)
 patient = PATIENT
 for epoch in range(EPOCH_NUMS):
-    print("====================\nepoch:{}\n=====================".format(epoch))
+    print("====================\nepoch:{}\n===================".format(epoch))
     prev_loss = trainer.loss
     loss = trainer.train_step()
     # early stop, check whether converge or not
