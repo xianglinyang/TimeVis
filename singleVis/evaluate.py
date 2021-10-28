@@ -2,9 +2,7 @@
 Help functions to evaluate our visualization system
 """
 from sklearn.neighbors import KDTree
-from deepvisualinsight import backend
 import numpy as np
-from scipy.stats import spearmanr
 from scipy.stats import pearsonr
 from pynndescent import NNDescent
 from sklearn.manifold import trustworthiness
