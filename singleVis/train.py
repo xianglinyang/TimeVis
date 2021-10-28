@@ -129,19 +129,86 @@ sampler = WeightedRandomSampler(probs, n_samples, replacement=False)
 edge_loader = DataLoader(dataset, batch_size=1000, sampler=sampler)
 
 trainer = SingleVisTrainer(model, criterion, optimizer, edge_loader=edge_loader, DEVICE=DEVICE)
-patient = PATIENT
-for epoch in range(EPOCH_NUMS):
-    print("====================\nepoch:{}\n===================".format(epoch))
-    prev_loss = trainer.loss
-    loss = trainer.train_step()
-    # early stop, check whether converge or not
-    if prev_loss - loss < 1E-2:
-        if patient == 0:
-            break
-        else:
-            patient -= 1
-    else:
-        patient = PATIENT
+# patient = PATIENT
+# for epoch in range(EPOCH_NUMS):
+#     print("====================\nepoch:{}\n===================".format(epoch))
+#     prev_loss = trainer.loss
+#     loss = trainer.train_step()
+#     # early stop, check whether converge or not
+#     if prev_loss - loss < 1E-2:
+#         if patient == 0:
+#             break
+#         else:
+#             patient -= 1
+#     else:
+#         patient = PATIENT
+#
+#
+# trainer.save(name="..//model//cifar10_epoch")
+trainer.load(name="..//model//cifar10_epoch_10")
+
+########################################################################################################################
+# evaluate
+########################################################################################################################
 
 
-trainer.save(name="..//model//cifar10_epoch")
+def get_epoch_train_repr_data(epoch_id):
+    """get representations of training data"""
+    train_data_loc = os.path.join(os.path.join(content_path, "Model"), "Epoch_{:d}".format(epoch_id), "train_data.npy")
+    train_data = np.load(train_data_loc)
+    return train_data
+
+
+def get_epoch_border_repr_data(epoch_id):
+    """get representations of training data"""
+    border_centers_loc = os.path.join(os.path.join(content_path, "Model"), "Epoch_{:d}".format(epoch_id),
+                                      "advance_border_centers.npy")
+    try:
+        border_centers = np.load(border_centers_loc)[:500]
+    except Exception as e:
+        print("no border points saved for Epoch {}".format(t))
+    return border_centers
+
+
+"""evalute training nn preserving property"""
+# from evaluate import evaluate_proj_nn_perseverance_knn
+# from evaluate import evaluate_proj_boundary_perseverance_knn
+# for t in range(1, TIME_STEPS+1, 1):
+#     train_data = get_epoch_train_repr_data(t)
+#     trainer.model.eval()
+#     embedding = trainer.model.encoder(torch.from_numpy(train_data).to(dtype=torch.float32)).cpu().detach().numpy()
+#     val = evaluate_proj_nn_perseverance_knn(train_data, embedding, n_neighbors=15, metric="euclidean")
+#     print("nn preserving: {:.2f}/15 in epoch {:d}".format(val, t))
+#
+#     border_centers = get_epoch_border_repr_data(t)
+#
+#     low_center = trainer.model.encoder(torch.from_numpy(border_centers).to(dtype=torch.float32)).cpu().detach().numpy()
+#     low_train = trainer.model.encoder(torch.from_numpy(train_data).to(dtype=torch.float32)).cpu().detach().numpy()
+#
+#     val = evaluate_proj_boundary_perseverance_knn(train_data, low_train, border_centers, low_center, n_neighbors=15)
+#     print("boundary preserving: {:.2f}/15 in epoch {:d}".format(val, t))
+
+
+
+"""evalute training temporal preserving property"""
+from evaluate import evaluate_proj_temporal_perseverance_corr
+import backend
+eval_num = 6
+l = 50000
+alpha = np.zeros((eval_num, l))
+delta_x = np.zeros((eval_num, l))
+for t in range(2, 8, 1):
+    prev_data = get_epoch_train_repr_data(t-1)
+    prev_embedding = trainer.model.encoder(torch.from_numpy(prev_data).to(dtype=torch.float32)).cpu().detach().numpy()
+
+    curr_data = get_epoch_train_repr_data(t)
+    curr_embedding = trainer.model.encoder(torch.from_numpy(curr_data).to(dtype=torch.float32)).cpu().detach().numpy()
+
+    alpha_ = backend.find_neighbor_preserving_rate(prev_data, curr_data, n_neighbors=15)
+    delta_x_ = np.linalg.norm(prev_embedding - curr_embedding, axis=1)
+
+    alpha[t-2] = alpha_
+    delta_x[t-2] = delta_x_
+
+val_corr = evaluate_proj_temporal_perseverance_corr(alpha, delta_x)
+print("temporal preserving: {:.3f}".format(val_corr))

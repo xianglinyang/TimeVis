@@ -1,10 +1,7 @@
 import torch
-from torch.utils.data import DataLoader
-
-import edge_dataset
-from SingleVisualizationModel import SingleVisualizationModel
-from losses import SingleVisLoss
-from edge_dataset import DataHandler
+import os
+import numpy as np
+from evaluate import evaluate_proj_nn_perseverance_knn
 """
 1. construct a spatio-temporal complex
 2. construct an edge-dataset
@@ -66,8 +63,8 @@ class SingleVisTrainer:
         """
         save_model = torch.load(name + '.pth')
         self._loss = save_model["loss"]
-        self.model = self.model.load_state_dict(save_model["state_dict"])
-        self.optimizer = self.optimizer.load_state_dict(save_model["optimizer"])
+        self.model.load_state_dict(save_model["state_dict"])
+        self.optimizer.load_state_dict(save_model["optimizer"])
 
     def save(self, name="singleVisModel"):
         """
