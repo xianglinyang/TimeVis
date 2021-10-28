@@ -65,7 +65,7 @@ class SingleVisTrainer:
         :return:
         """
         save_model = torch.load(name + '.pth')
-        self._loss = save_model["loss"].item()
+        self._loss = save_model["loss"]
         self.model = self.model.load_state_dict(save_model["state_dict"])
         self.optimizer = self.optimizer.load_state_dict(save_model["optimizer"])
 
