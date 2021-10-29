@@ -55,7 +55,7 @@ class SingleVisTrainer:
                                                                 sum(all_loss) / len(all_loss)))
         return self.loss
 
-    def load(self, name="singleVisModel"):
+    def load(self, device, name="singleVisModel"):
         """
         save all parameters...
         :param name:
@@ -65,6 +65,9 @@ class SingleVisTrainer:
         self._loss = save_model["loss"]
         self.model.load_state_dict(save_model["state_dict"])
         self.optimizer.load_state_dict(save_model["optimizer"])
+        self.model.to(device)
+        self.optimizer.to(device)
+        print("Successfully load visualization mdoel")
 
     def save(self, name="singleVisModel"):
         """

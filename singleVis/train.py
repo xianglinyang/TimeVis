@@ -5,6 +5,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.data import WeightedRandomSampler
 from umap.umap_ import find_ab_params
+import time
 
 from SingleVisualizationModel import SingleVisualizationModel
 from losses import SingleVisLoss, UmapLoss, ReconstructionLoss
@@ -19,10 +20,11 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 EPOCH_NUMS = 100
 LEN = 50000
 TIME_STEPS = 7
-TEMPORAL_PERSISTANT = 2
+TEMPORAL_PERSISTANT = 4
 NUMS = 5    # how many epoch should we go through for one pass
-PATIENT = 4
+PATIENT = 3
 
+time_start = time.time()
 
 model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256)
 negative_sample_rate = 5
@@ -129,23 +131,25 @@ sampler = WeightedRandomSampler(probs, n_samples, replacement=False)
 edge_loader = DataLoader(dataset, batch_size=1000, sampler=sampler)
 
 trainer = SingleVisTrainer(model, criterion, optimizer, edge_loader=edge_loader, DEVICE=DEVICE)
-# patient = PATIENT
-# for epoch in range(EPOCH_NUMS):
-#     print("====================\nepoch:{}\n===================".format(epoch))
-#     prev_loss = trainer.loss
-#     loss = trainer.train_step()
-#     # early stop, check whether converge or not
-#     if prev_loss - loss < 1E-2:
-#         if patient == 0:
-#             break
-#         else:
-#             patient -= 1
-#     else:
-#         patient = PATIENT
-#
-#
+patient = PATIENT
+for epoch in range(EPOCH_NUMS):
+    print("====================\nepoch:{}\n===================".format(epoch))
+    prev_loss = trainer.loss
+    loss = trainer.train_step()
+    # early stop, check whether converge or not
+    if prev_loss - loss < 1E-2:
+        if patient == 0:
+            break
+        else:
+            patient -= 1
+    else:
+        patient = PATIENT
+
+time_end = time.time()
+time_spend = time_end - time_start
+print("Time spend: {:.2f}".format(time_spend))
 # trainer.save(name="..//model//cifar10_epoch")
-trainer.load(name="..//model//cifar10_epoch_10")
+# trainer.load(device=DEVICE, name="..//model//cifar10_epoch_10")
 
 ########################################################################################################################
 # evaluate
@@ -199,10 +203,10 @@ alpha = np.zeros((eval_num, l))
 delta_x = np.zeros((eval_num, l))
 for t in range(2, 8, 1):
     prev_data = get_epoch_train_repr_data(t-1)
-    prev_embedding = trainer.model.encoder(torch.from_numpy(prev_data).to(dtype=torch.float32)).cpu().detach().numpy()
+    prev_embedding = trainer.model.encoder(torch.from_numpy(prev_data).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
 
     curr_data = get_epoch_train_repr_data(t)
-    curr_embedding = trainer.model.encoder(torch.from_numpy(curr_data).to(dtype=torch.float32)).cpu().detach().numpy()
+    curr_embedding = trainer.model.encoder(torch.from_numpy(curr_data).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
 
     alpha_ = backend.find_neighbor_preserving_rate(prev_data, curr_data, n_neighbors=15)
     delta_x_ = np.linalg.norm(prev_embedding - curr_embedding, axis=1)
