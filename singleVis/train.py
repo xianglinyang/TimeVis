@@ -11,6 +11,7 @@ from SingleVisualizationModel import SingleVisualizationModel
 from losses import SingleVisLoss, UmapLoss, ReconstructionLoss
 from edge_dataset import DataHandler
 from trainer import SingleVisTrainer
+from utils import batch_run
 
 from backend import fuzzy_complex, boundary_wise_complex, construct_step_edge_dataset, construct_temporal_edge_dataset
 
@@ -20,7 +21,7 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 EPOCH_NUMS = 100
 LEN = 50000
 TIME_STEPS = 7
-TEMPORAL_PERSISTANT = 4
+TEMPORAL_PERSISTENT = 0
 NUMS = 5    # how many epoch should we go through for one pass
 PATIENT = 3
 
@@ -72,7 +73,7 @@ for t in range(1, TIME_STEPS+1, 1):
     border_centers_loc = os.path.join(os.path.join(content_path, "Model"), "Epoch_{:d}".format(t),
                                                    "advance_border_centers.npy")
     try:
-        border_centers = np.load(border_centers_loc)[:500]
+        border_centers = np.load(border_centers_loc)[:LEN//100]
     except Exception as e:
         print("no border points saved for Epoch {}".format(t))
         continue
@@ -108,15 +109,22 @@ for t in range(1, TIME_STEPS+1, 1):
         knn_indices = np.concatenate((knn_indices, knn_idxs_t+increase_idx), axis=0)
 
 # boundary points...
+
 heads, tails, vals = construct_temporal_edge_dataset(X=feature_vectors,
                                                      n_vertices=n_vertices,
-                                                     persistent=TEMPORAL_PERSISTANT,
+                                                     persistent=TEMPORAL_PERSISTENT,
                                                      time_steps=TIME_STEPS,
                                                      knn_indices=knn_indices,
                                                      sigmas=sigmas,
                                                      rhos=rhos)
+# remove elements with very low probability
+eliminate_idxs = (vals < 1e-2)
+heads = heads[eliminate_idxs]
+tails = tails[eliminate_idxs]
+vals = vals[eliminate_idxs]
+
 weight = np.concatenate((weight, vals), axis=0)
-probs_t = vals / vals.max()
+probs_t = vals / (vals.max() + 1e-4)
 probs = np.concatenate((probs, probs_t), axis=0)
 edge_to = np.concatenate((edge_to, heads), axis=0)
 edge_from = np.concatenate((edge_from, tails), axis=0)
@@ -148,7 +156,7 @@ for epoch in range(EPOCH_NUMS):
 time_end = time.time()
 time_spend = time_end - time_start
 print("Time spend: {:.2f}".format(time_spend))
-# trainer.save(name="..//model//cifar10_epoch")
+trainer.save(name="..//model//cifar10")
 # trainer.load(device=DEVICE, name="..//model//cifar10_epoch_10")
 
 ########################################################################################################################
@@ -174,23 +182,51 @@ def get_epoch_border_repr_data(epoch_id):
     return border_centers
 
 
+def get_pred(net, epoch_id, data):
+    '''
+    get the prediction score for data in epoch_id
+    :param data: numpy.ndarray
+    :param epoch_id:
+    :return: pred, numpy.ndarray
+    '''
+    model_location = os.path.join(os.path.join(content_path, "Model"), "Epoch_{:d}".format(epoch_id), "subject_model.pth")
+    net.load_state_dict(torch.load(model_location, map_location=torch.device("cpu")))
+    net = net.to(DEVICE)
+    net.eval()
+
+    fc_model = torch.nn.Sequential(*(list(net.children())[-1:]))
+
+    data = torch.from_numpy(data)
+    data = data.to(DEVICE)
+    pred = batch_run(fc_model, data, len(classes))
+    return pred
+
+
 """evalute training nn preserving property"""
-# from evaluate import evaluate_proj_nn_perseverance_knn
-# from evaluate import evaluate_proj_boundary_perseverance_knn
+# from evaluate import evaluate_proj_nn_perseverance_knn, evaluate_proj_boundary_perseverance_knn, evaluate_inv_accu
 # for t in range(1, TIME_STEPS+1, 1):
 #     train_data = get_epoch_train_repr_data(t)
 #     trainer.model.eval()
-#     embedding = trainer.model.encoder(torch.from_numpy(train_data).to(dtype=torch.float32)).cpu().detach().numpy()
+#     embedding = trainer.model.encoder(torch.from_numpy(train_data).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
 #     val = evaluate_proj_nn_perseverance_knn(train_data, embedding, n_neighbors=15, metric="euclidean")
 #     print("nn preserving: {:.2f}/15 in epoch {:d}".format(val, t))
 #
 #     border_centers = get_epoch_border_repr_data(t)
 #
-#     low_center = trainer.model.encoder(torch.from_numpy(border_centers).to(dtype=torch.float32)).cpu().detach().numpy()
-#     low_train = trainer.model.encoder(torch.from_numpy(train_data).to(dtype=torch.float32)).cpu().detach().numpy()
+#     low_center = trainer.model.encoder(torch.from_numpy(border_centers).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
+#     low_train = trainer.model.encoder(torch.from_numpy(train_data).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
 #
 #     val = evaluate_proj_boundary_perseverance_knn(train_data, low_train, border_centers, low_center, n_neighbors=15)
 #     print("boundary preserving: {:.2f}/15 in epoch {:d}".format(val, t))
+#
+#     inv_data = trainer.model.decoder(torch.from_numpy(embedding).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
+#
+#     pred = get_pred(net, t, train_data).argmax(axis=1)
+#     new_pred = get_pred(net, t, inv_data).argmax(axis=1)
+#
+#     val = evaluate_inv_accu(pred, new_pred)
+#     print("ppr: {:.2f} in epoch {:d}".format(val, t))
+
 
 
 
@@ -198,7 +234,7 @@ def get_epoch_border_repr_data(epoch_id):
 from evaluate import evaluate_proj_temporal_perseverance_corr
 import backend
 eval_num = 6
-l = 50000
+l = LEN
 alpha = np.zeros((eval_num, l))
 delta_x = np.zeros((eval_num, l))
 for t in range(2, 8, 1):
