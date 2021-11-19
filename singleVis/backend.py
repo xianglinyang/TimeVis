@@ -10,7 +10,6 @@ from sklearn.neighbors import KDTree
 import numpy as np
 import scipy.sparse
 from umap.umap_ import compute_membership_strengths
-import numba
 
 
 def get_graph_elements(graph_, n_epochs):

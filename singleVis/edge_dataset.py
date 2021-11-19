@@ -2,7 +2,6 @@ from torch.utils.data import Dataset
 from PIL import Image
 
 
-# TODO two hierarchy index,
 class DataHandler(Dataset):
     def __init__(self, edge_to, edge_from, feature_vector, transform=None):
         self.edge_to = edge_to
