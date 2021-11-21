@@ -203,29 +203,29 @@ def get_pred(net, epoch_id, data):
 
 
 """evalute training nn preserving property"""
-# from evaluate import evaluate_proj_nn_perseverance_knn, evaluate_proj_boundary_perseverance_knn, evaluate_inv_accu
-# for t in range(1, TIME_STEPS+1, 1):
-#     train_data = get_epoch_train_repr_data(t)
-#     trainer.model.eval()
-#     embedding = trainer.model.encoder(torch.from_numpy(train_data).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
-#     val = evaluate_proj_nn_perseverance_knn(train_data, embedding, n_neighbors=15, metric="euclidean")
-#     print("nn preserving: {:.2f}/15 in epoch {:d}".format(val, t))
-#
-#     border_centers = get_epoch_border_repr_data(t)
-#
-#     low_center = trainer.model.encoder(torch.from_numpy(border_centers).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
-#     low_train = trainer.model.encoder(torch.from_numpy(train_data).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
-#
-#     val = evaluate_proj_boundary_perseverance_knn(train_data, low_train, border_centers, low_center, n_neighbors=15)
-#     print("boundary preserving: {:.2f}/15 in epoch {:d}".format(val, t))
-#
-#     inv_data = trainer.model.decoder(torch.from_numpy(embedding).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
-#
-#     pred = get_pred(net, t, train_data).argmax(axis=1)
-#     new_pred = get_pred(net, t, inv_data).argmax(axis=1)
-#
-#     val = evaluate_inv_accu(pred, new_pred)
-#     print("ppr: {:.2f} in epoch {:d}".format(val, t))
+from evaluate import evaluate_proj_nn_perseverance_knn, evaluate_proj_boundary_perseverance_knn, evaluate_inv_accu
+for t in range(1, TIME_STEPS+1, 1):
+    train_data = get_epoch_train_repr_data(t)
+    trainer.model.eval()
+    embedding = trainer.model.encoder(torch.from_numpy(train_data).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
+    val = evaluate_proj_nn_perseverance_knn(train_data, embedding, n_neighbors=15, metric="euclidean")
+    print("nn preserving: {:.2f}/15 in epoch {:d}".format(val, t))
+
+    border_centers = get_epoch_border_repr_data(t)
+
+    low_center = trainer.model.encoder(torch.from_numpy(border_centers).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
+    low_train = trainer.model.encoder(torch.from_numpy(train_data).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
+
+    val = evaluate_proj_boundary_perseverance_knn(train_data, low_train, border_centers, low_center, n_neighbors=15)
+    print("boundary preserving: {:.2f}/15 in epoch {:d}".format(val, t))
+
+    inv_data = trainer.model.decoder(torch.from_numpy(embedding).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
+
+    pred = get_pred(net, t, train_data).argmax(axis=1)
+    new_pred = get_pred(net, t, inv_data).argmax(axis=1)
+
+    val = evaluate_inv_accu(pred, new_pred)
+    print("ppr: {:.2f} in epoch {:d}".format(val, t))
 
 
 

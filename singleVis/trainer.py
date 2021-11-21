@@ -55,6 +55,10 @@ class SingleVisTrainer:
                                                                 sum(all_loss) / len(all_loss)))
         return self.loss
 
+
+    def train(self):
+        pass
+
     def load(self, device, name="singleVisModel"):
         """
         save all parameters...
