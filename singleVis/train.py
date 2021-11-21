@@ -163,54 +163,16 @@ trainer.save(name="..//model//cifar10")
 ########################################################################################################################
 
 
-def get_epoch_train_repr_data(epoch_id):
-    """get representations of training data"""
-    train_data_loc = os.path.join(os.path.join(content_path, "Model"), "Epoch_{:d}".format(epoch_id), "train_data.npy")
-    train_data = np.load(train_data_loc)
-    return train_data
-
-
-def get_epoch_border_repr_data(epoch_id):
-    """get representations of training data"""
-    border_centers_loc = os.path.join(os.path.join(content_path, "Model"), "Epoch_{:d}".format(epoch_id),
-                                      "advance_border_centers.npy")
-    try:
-        border_centers = np.load(border_centers_loc)[:500]
-    except Exception as e:
-        print("no border points saved for Epoch {}".format(t))
-    return border_centers
-
-
-def get_pred(net, epoch_id, data):
-    '''
-    get the prediction score for data in epoch_id
-    :param data: numpy.ndarray
-    :param epoch_id:
-    :return: pred, numpy.ndarray
-    '''
-    model_location = os.path.join(os.path.join(content_path, "Model"), "Epoch_{:d}".format(epoch_id), "subject_model.pth")
-    net.load_state_dict(torch.load(model_location, map_location=torch.device("cpu")))
-    net = net.to(DEVICE)
-    net.eval()
-
-    fc_model = torch.nn.Sequential(*(list(net.children())[-1:]))
-
-    data = torch.from_numpy(data)
-    data = data.to(DEVICE)
-    pred = batch_run(fc_model, data, len(classes))
-    return pred
-
-
 """evalute training nn preserving property"""
 from evaluate import evaluate_proj_nn_perseverance_knn, evaluate_proj_boundary_perseverance_knn, evaluate_inv_accu
 for t in range(1, TIME_STEPS+1, 1):
-    train_data = get_epoch_train_repr_data(t)
+    train_data = data_provider.train_representation(t)
     trainer.model.eval()
     embedding = trainer.model.encoder(torch.from_numpy(train_data).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
     val = evaluate_proj_nn_perseverance_knn(train_data, embedding, n_neighbors=15, metric="euclidean")
     print("nn preserving: {:.2f}/15 in epoch {:d}".format(val, t))
 
-    border_centers = get_epoch_border_repr_data(t)
+    border_centers = data_provider.border_representation(t)
 
     low_center = trainer.model.encoder(torch.from_numpy(border_centers).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
     low_train = trainer.model.encoder(torch.from_numpy(train_data).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
@@ -220,8 +182,8 @@ for t in range(1, TIME_STEPS+1, 1):
 
     inv_data = trainer.model.decoder(torch.from_numpy(embedding).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
 
-    pred = get_pred(net, t, train_data).argmax(axis=1)
-    new_pred = get_pred(net, t, inv_data).argmax(axis=1)
+    pred = data_provider.get_pred(t, train_data).argmax(axis=1)
+    new_pred = data_provider.get_pred(t, inv_data).argmax(axis=1)
 
     val = evaluate_inv_accu(pred, new_pred)
     print("ppr: {:.2f} in epoch {:d}".format(val, t))
@@ -237,10 +199,10 @@ l = LEN
 alpha = np.zeros((eval_num, l))
 delta_x = np.zeros((eval_num, l))
 for t in range(2, 8, 1):
-    prev_data = get_epoch_train_repr_data(t-1)
+    prev_data = data_provider.train_representation(t-1)
     prev_embedding = trainer.model.encoder(torch.from_numpy(prev_data).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
 
-    curr_data = get_epoch_train_repr_data(t)
+    curr_data = data_provider.train_representation(t)
     curr_embedding = trainer.model.encoder(torch.from_numpy(curr_data).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
 
     alpha_ = backend.find_neighbor_preserving_rate(prev_data, curr_data, n_neighbors=15)

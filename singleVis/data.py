@@ -206,3 +206,17 @@ class DataProvider:
         model = model.to(self.DEVICE)
         model = model.eval()
         return model
+
+    def get_pred(self, epoch, data):
+        '''
+        get the prediction score for data in epoch_id
+        :param data: numpy.ndarray
+        :param epoch_id:
+        :return: pred, numpy.ndarray
+        '''
+        prediction_func = self.prediction_function(epoch)
+
+        data = torch.from_numpy(data)
+        data = data.to(self.DEVICE)
+        pred = batch_run(prediction_func, data)
+        return pred
