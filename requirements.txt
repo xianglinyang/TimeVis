@@ -1,7 +1,7 @@
 Model==0.6.0
 numpy==1.20.3
 Pillow==8.4.0
-pynndescent==0.5.5
+pynndescent==0.5.1
 scikit_learn==1.0.1
 scipy==1.7.2
 torch==1.10.0
