@@ -8,20 +8,20 @@ DataContainder module
 1. prepare data
 """
 
-class DataContainer:
-    def __init__(self, content_path, model, epoch_start, epoch_end, epoch_period, split, class_num, device, verbose=1):
+class DataProvider:
+    def __init__(self, content_path, model, epoch_start, epoch_end, epoch_period, split, device, verbose=1):
         self.content_path = content_path
         self.model = model
         self.s = epoch_start
         self.e = epoch_end
         self.p = epoch_period
         self.split = split
-        self.class_num = class_num
         self.DEVICE = device
         self.verbose = verbose
         self.model_path = os.path.join(self.content_path, "Model")
 
-    def meta_data(self):
+
+    def _meta_data(self):
         time_inference = list()
         training_data_path = os.path.join(self.content_path, "Training_data")
         training_data = torch.load(os.path.join(training_data_path, "training_dataset_data.pth"),
@@ -81,7 +81,7 @@ class DataContainer:
         del testing_data
         gc.collect()
 
-    def estimate_boundary(self, num, l_bound):
+    def _estimate_boundary(self, num, l_bound):
         '''
         Preprocessing data. This process includes find_border_points and find_border_centers
         save data for later training
@@ -91,9 +91,6 @@ class DataContainer:
         training_data_path = os.path.join(self.content_path, "Training_data")
         training_data = torch.load(os.path.join(training_data_path, "training_dataset_data.pth"),
                                    map_location=self.DEVICE)
-        testing_data_path = os.path.join(self.content_path, "Testing_data")
-        testing_data = torch.load(os.path.join(testing_data_path, "testing_dataset_data.pth"),
-                                  map_location=self.DEVICE)
         for n_epoch in range(self.e, self.e + 1, self.p):
             index_file = os.path.join(self.model_path, "Epoch_{:d}".format(n_epoch), "index.json")
             index = load_labelled_data_index(index_file)
@@ -148,3 +145,42 @@ class DataContainer:
         evaluation["data_B_gene"] = round(sum(time_borders_gen) / len(time_borders_gen), 3)
         with open(save_dir, 'w') as f:
             json.dump(evaluation, f)
+
+    def initialize(self, num, l_bound):
+        self._meta_data()
+        self._estimate_boundary(num, l_bound)
+
+    def train_representation(self, epoch):
+        # load train data
+        train_data_loc = os.path.join(self.model_path, "Epoch_{:d}".format(epoch), "train_data.npy")
+        index_file = os.path.join(self.model_path, "Epoch_{:d}".format(epoch), "index.json")
+        index = load_labelled_data_index(index_file)
+        try:
+            train_data = np.load(train_data_loc)
+            train_data = train_data[index]
+        except Exception as e:
+            print("no train data saved for Epoch {}".format(epoch))
+            train_data = None
+        return train_data
+
+    def test_representation(self, epoch):
+        data_loc = os.path.join(self.model_path, "Epoch_{:d}".format(epoch), "test_data.npy")
+        index_file = os.path.join(self.model_path, "Epoch_{:d}".format(epoch), "test_index.json")
+        index = load_labelled_data_index(index_file)
+        try:
+            test_data = np.load(data_loc)
+            test_data = test_data[index]
+        except Exception as e:
+            print("no test data saved for Epoch {}".format(epoch))
+            test_data = None
+        return test_data
+
+    def border_representation(self, epoch):
+        border_centers_loc = os.path.join(self.model_path, "Epoch_{:d}".format(epoch),
+                                          "border_centers.npy")
+        try:
+            border_centers = np.load(border_centers_loc)
+        except Exception as e:
+            print("no border points saved for Epoch {}".format(t))
+            border_centers = None
+        return border_centers
