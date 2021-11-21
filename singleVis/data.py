@@ -91,7 +91,7 @@ class DataProvider:
         training_data_path = os.path.join(self.content_path, "Training_data")
         training_data = torch.load(os.path.join(training_data_path, "training_dataset_data.pth"),
                                    map_location=self.DEVICE)
-        for n_epoch in range(self.e, self.e + 1, self.p):
+        for n_epoch in range(self.s, self.e + 1, self.p):
             index_file = os.path.join(self.model_path, "Epoch_{:d}".format(n_epoch), "index.json")
             index = load_labelled_data_index(index_file)
             training_data = training_data[index]
@@ -115,7 +115,7 @@ class DataProvider:
                                                                      device=self.DEVICE,
                                                                      l_bound=l_bound,
                                                                      num_adv_eg=num_adv_eg,
-                                                                     lambd=0.05,# trade-off between efficiency and diversity
+                                                                     lambd=0.05,
                                                                      verbose=0)
             t1 = time.time()
             time_borders_gen.append(round(t1 - t0, 4))
@@ -123,10 +123,10 @@ class DataProvider:
             # get gap layer data
             border_points = border_points.to(self.DEVICE)
             border_centers = batch_run(repr_model, border_points)
-            location = os.path.join(self.model_path, "Epoch_{:d}".format(n_epoch), "border_centers.npy")
+            location = os.path.join(self.model_path, "Epoch_{:d}".format(n_epoch), "advance_border_centers.npy")
             np.save(location, border_centers)
 
-            location = os.path.join(self.model_path, "Epoch_{:d}".format(n_epoch), "ori_border_centers.npy")
+            location = os.path.join(self.model_path, "Epoch_{:d}".format(n_epoch), "ori_advance_border_centers.npy")
             np.save(location, border_points.cpu().numpy())
 
             if self.verbose > 0:
@@ -147,7 +147,7 @@ class DataProvider:
             json.dump(evaluation, f)
 
     def initialize(self, num, l_bound):
-        self._meta_data()
+        # self._meta_data()
         self._estimate_boundary(num, l_bound)
 
     def train_representation(self, epoch):
@@ -177,10 +177,32 @@ class DataProvider:
 
     def border_representation(self, epoch):
         border_centers_loc = os.path.join(self.model_path, "Epoch_{:d}".format(epoch),
-                                          "border_centers.npy")
+                                          "advance_border_centers.npy")
         try:
             border_centers = np.load(border_centers_loc)
         except Exception as e:
-            print("no border points saved for Epoch {}".format(t))
+            print("no border points saved for Epoch {}".format(epoch))
             border_centers = None
         return border_centers
+
+    def prediction_function(self, epoch):
+        model_location = os.path.join(self.model_path, "Epoch_{:d}".format(epoch), "subject_model.pth")
+        self.model.load_state_dict(torch.load(model_location, map_location=torch.device("cpu")))
+        self.model = self.model.to(self.DEVICE)
+        self.model.eval()
+
+        model = torch.nn.Sequential(*(list(self.model.children())[self.split:]))
+        model = model.to(self.DEVICE)
+        model = model.eval()
+        return model
+
+    def feature_function(self, epoch):
+        model_location = os.path.join(self.model_path, "Epoch_{:d}".format(epoch), "subject_model.pth")
+        self.model.load_state_dict(torch.load(model_location, map_location=torch.device("cpu")))
+        self.model = self.model.to(self.DEVICE)
+        self.model.eval()
+
+        model = torch.nn.Sequential(*(list(self.model.children())[:self.split]))
+        model = model.to(self.DEVICE)
+        model = model.eval()
+        return model
