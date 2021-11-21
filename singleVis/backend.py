@@ -2,7 +2,11 @@
 backend APIs for Single Visualization model trainer
 """
 # import modules
+import torch
+import time
+from scipy.special import softmax
 from umap.umap_ import fuzzy_simplicial_set
+import numba
 
 from pynndescent import NNDescent
 from sklearn.utils import check_random_state
@@ -349,4 +353,37 @@ def find_neighbor_preserving_rate(prev_data, train_data, n_neighbors):
 #     rows, cols, vals, dists = compute_membership_strengths(
 #         knn_indices, knn_dists, sigmas, rhos
 #     )
+
+def get_attention(model, data, device, temperature=.01, verbose=1):
+    t0 = time.time()
+    grad_list = []
+
+    for i in range(len(data)):
+        b = torch.from_numpy(data[i:i + 1]).to(device=device, dtype=torch.float)
+        b.requires_grad = True
+        out = model(b)
+        top1 = torch.argsort(out)[0][-1]
+        out[0][top1].backward()
+        grad_list.append(b.grad.data.detach().cpu().numpy())
+    grad_list2 = []
+
+    for i in range(len(data)):
+        b = torch.from_numpy(data[i:i + 1]).to(device=device, dtype=torch.float)
+        b.requires_grad = True
+        out = model(b)
+        top2 = torch.argsort(out)[0][-2]
+        out[0][top2].backward()
+        grad_list2.append(b.grad.data.detach().cpu().numpy())
+    t1 = time.time()
+    grad1 = np.array(grad_list)
+    grad2 = np.array(grad_list2)
+    grad1 = grad1.squeeze(axis=1)
+    grad2 = grad2.squeeze(axis=1)
+    grad = np.abs(grad1) + np.abs(grad2)
+    grad = softmax(grad/temperature, axis=1)
+    t2 = time.time()
+    if verbose:
+        print("Gradients calculation: {:.2f} seconds\tsoftmax with temperature: {:.2f} seconds".format(round(t1-t0), round(t2-t1)))
+
+    return grad
 

@@ -34,13 +34,13 @@ class SingleVisTrainer:
         umap_losses = []
         recon_losses = []
         for data in self.edge_loader:
-            edge_to, edge_from = data
+            edge_to, edge_from, a_to, a_from = data
 
             edge_to = edge_to.to(device=self.DEVICE, dtype=torch.float32)
             edge_from = edge_from.to(device=self.DEVICE, dtype=torch.float32)
 
             outputs = self.model(edge_to, edge_from)
-            umap_l, recon_l, loss = self.criterion(edge_to, edge_from, outputs)
+            umap_l, recon_l, loss = self.criterion(edge_to, edge_from, a_to, a_from, outputs)
             all_loss.append(loss.item())
             umap_losses.append(umap_l.item())
             recon_losses.append(recon_l.item())
