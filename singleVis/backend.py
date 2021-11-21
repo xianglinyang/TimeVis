@@ -14,6 +14,7 @@ from sklearn.neighbors import KDTree
 import numpy as np
 import scipy.sparse
 from umap.umap_ import compute_membership_strengths
+from utils import jaccard_similarity
 
 
 def get_graph_elements(graph_, n_epochs):
@@ -155,25 +156,25 @@ def knn_dists(X, indices, knn_indices):
     return knn_dists
 
 
-@numba.jit()
-def fast_knn_dists(X, knn_indices):
-    knn_dists = np.zeros(knn_indices.shape)
-    for i in range(len(X)):
-        for nn in knn_indices[i]:
-            if nn == -1:
-                continue
-            x1 = X[i]
-            x2 = X[nn]
-            # dist = np.sqrt(np.sum(np.power(x1-x2, 2)))
-            dist = np.linalg.norm(x1-x2)
-            knn_dists[i, nn] = dist
-    return knn_dists
+# @numba.jit()
+# def fast_knn_dists(X, knn_indices):
+#     knn_dists = np.zeros(knn_indices.shape)
+#     for i in range(len(X)):
+#         for nn in knn_indices[i]:
+#             if nn == -1:
+#                 continue
+#             x1 = X[i]
+#             x2 = X[nn]
+#             # dist = np.sqrt(np.sum(np.power(x1-x2, 2)))
+#             dist = np.linalg.norm(x1-x2)
+#             knn_dists[i, nn] = dist
+#     return knn_dists
 
 
-def construct_temporal_edge_dataset(X, n_vertices, persistent, time_steps, knn_indices, sigmas, rhos):
+def construct_temporal_edge_dataset(X, time_step_nums, persistent, time_steps, sigmas, rhos, k=15):
     """
 
-    :param n_vertices: the number of vertices(training data) in one time step
+    :param time_step_nums: [(train_num, b_num)]
     :param persistent: the length of sliding window
     :param time_steps: the number of time steps we are looking at
     :param knn_indices: (n_vertices*1.1*time_steps, k)
@@ -182,23 +183,32 @@ def construct_temporal_edge_dataset(X, n_vertices, persistent, time_steps, knn_i
     rows = np.zeros(1, dtype=np.int32)
     cols = np.zeros(1, dtype=np.int32)
     vals = np.zeros(1, dtype=np.float32)
-    n_all = int(n_vertices * time_steps * 1.1)
-    k = knn_indices.shape[1]
+    n_all = 0
+    time_step_num = list()
+    for i in time_step_nums:
+        time_step_num.append(n_all)
+        n_all = n_all + i[0] + i[1]
     # forward
     for window in range(1, persistent + 1, 1):
         for step in range(0, time_steps - window, 1):
             knn_indices_in = - np.ones((n_all, k))
             knn_dist = np.zeros((n_all, k))
 
-            knn_indices_in[int(n_vertices * step * 1.1): int(n_vertices * step * 1.1 + n_vertices)] = \
-                knn_indices[int(n_vertices * (step + window)): int(n_vertices * (step + window + 1))]
+            curr_data = X[time_step_num[step]:time_step_num[step] + time_step_nums[step][0]]
+            next_data = X[time_step_num[step+window]:time_step_num[step+window] + time_step_nums[step + window][0]]
+            increase_idx = time_step_num[step+window]
+
+            tree = KDTree(next_data)
+            _, knn_indices = tree.query(curr_data, k=15)
+            knn_indices = knn_indices + increase_idx
+
+            knn_indices_in[time_step_num[step]: time_step_num[step] + time_step_nums[step][0]] = knn_indices
             knn_indices_in = knn_indices_in.astype('int')
 
-            indices = np.arange(int(n_vertices * 1.1 * step), int(n_vertices * 1.1 * step + n_vertices), 1)
-            knn_indices_tmp = knn_indices[int(n_vertices * (step + window)): int(n_vertices * (step + window + 1))]
-            knn_dists_t = knn_dists(X, indices, knn_indices_tmp)
+            indices = np.arange(time_step_num[step], time_step_num[step] + time_step_nums[step][0], 1)
+            knn_dists_t = knn_dists(X, indices, knn_indices)
 
-            knn_dist[int(n_vertices * 1.1 * step): int(n_vertices * 1.1 * step + n_vertices)] = knn_dists_t
+            knn_dist[time_step_num[step]:time_step_num[step] + time_step_nums[step][0]] = knn_dists_t
             knn_dist = knn_dist.astype('float32')
 
             rows_t, cols_t, vals_t, _ = compute_membership_strengths(knn_indices_in, knn_dist, sigmas, rhos, return_dists=False)
@@ -212,15 +222,21 @@ def construct_temporal_edge_dataset(X, n_vertices, persistent, time_steps, knn_i
             knn_indices_in = - np.ones((n_all, k))
             knn_dist = np.zeros((n_all, k))
 
-            knn_indices_in[int(n_vertices * step * 1.1): int(n_vertices * step * 1.1 + n_vertices)] = \
-                knn_indices[int(n_vertices * (step - window)): int(n_vertices * (step - window + 1))]
+            curr_data = X[time_step_num[step]:time_step_num[step] + time_step_nums[step][0]]
+            prev_data = X[time_step_num[step - window]:time_step_num[step - window] + time_step_nums[step - window][0]]
+            increase_idx = time_step_num[step - window]
+
+            tree = KDTree(prev_data)
+            _, knn_indices = tree.query(curr_data, k=15)
+            knn_indices = knn_indices + increase_idx
+
+            knn_indices_in[time_step_num[step]: time_step_num[step] + time_step_nums[step][0]] = knn_indices
             knn_indices_in = knn_indices_in.astype('int')
 
-            indices = np.arange(int(n_vertices * 1.1 * step), int(n_vertices * 1.1 * step + n_vertices), 1)
-            knn_indices_tmp = knn_indices[int(n_vertices * (step - window)): int(n_vertices * (step - window + 1))]
-            knn_dists_t = knn_dists(X, indices, knn_indices_tmp)
+            indices = np.arange(time_step_num[step], time_step_num[step] + time_step_nums[step][0], 1)
+            knn_dists_t = knn_dists(X, indices, knn_indices)
 
-            knn_dist[int(n_vertices * 1.1 * step): int(n_vertices * 1.1 * step + n_vertices)] = knn_dists_t
+            knn_dist[time_step_num[step]:time_step_num[step] + time_step_nums[step][0]] = knn_dists_t
             knn_dist = knn_dist.astype('float32')
 
             rows_t, cols_t, vals_t, _ = compute_membership_strengths(knn_indices_in, knn_dist, sigmas, rhos, return_dists=False)
@@ -386,4 +402,25 @@ def get_attention(model, data, device, temperature=.01, verbose=1):
         print("Gradients calculation: {:.2f} seconds\tsoftmax with temperature: {:.2f} seconds".format(round(t1-t0), round(t2-t1)))
 
     return grad
+
+def prune_points(knn_indices, prune_num, threshold):
+    prune_dict = dict()
+    selected_pruned = list()
+    for i in range(len(knn_indices)):
+        prune_dict[i] = False
+    for i in range(len(knn_indices)):
+        target_n = knn_indices[i]
+        for j in knn_indices[i][:prune_num]:
+            if prune_dict[j] or j <= i:
+                continue
+            j_n = knn_indices[j]
+            j_sim = jaccard_similarity(target_n, j_n)
+            if j_sim > threshold:
+                prune_dict[j] = True
+                selected_pruned.append(int(j))
+    return selected_pruned
+
+
+
+
 

@@ -11,19 +11,19 @@ from SingleVisualizationModel import SingleVisualizationModel
 from losses import SingleVisLoss, UmapLoss, ReconstructionLoss
 from edge_dataset import DataHandler
 from trainer import SingleVisTrainer
-from utils import batch_run
 from data import DataProvider
 
 from backend import fuzzy_complex, boundary_wise_complex, construct_step_edge_dataset, \
-    construct_temporal_edge_dataset, get_attention
+    construct_temporal_edge_dataset, get_attention, prune_points
+from utils import knn
 
 
 # define hyperparameters
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 EPOCH_NUMS = 100
 LEN = 50000
-TIME_STEPS = 1
-TEMPORAL_PERSISTENT = 0
+TIME_STEPS = 7
+TEMPORAL_PERSISTENT = 2
 NUMS = 5    # how many epoch should we go through for one pass
 PATIENT = 3
 
@@ -32,7 +32,7 @@ sys.path.append(content_path)
 from Model.model import *
 net = resnet18()
 classes = ("airplane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck")
-selected_idxs = np.random.choice(np.arange(LEN), size=LEN//10, replace=False)
+# selected_idxs = np.random.choice(np.arange(LEN), size=LEN//10, replace=False)
 
 data_provider = DataProvider(content_path, net, 1, TIME_STEPS, 1, split=-1, device=DEVICE, verbose=1)
 # data_provider.initialize(LEN//10, l_bound=0.6)
@@ -42,7 +42,7 @@ model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256)
 negative_sample_rate = 5
 min_dist = .1
 _a, _b = find_ab_params(1.0, min_dist)
-umap_loss_fn = UmapLoss(negative_sample_rate, _a, _b, repulsion_strength=1.0)
+umap_loss_fn = UmapLoss(negative_sample_rate, _a, _b, repulsion_strength=1.0, device=DEVICE)
 recon_loss_fn = ReconstructionLoss(beta=1.0)
 criterion = SingleVisLoss(umap_loss_fn, recon_loss_fn, lambd=1/50.)
 
@@ -63,15 +63,24 @@ feature_vectors = None
 attention = None
 knn_indices = None
 n_vertices = -1
+time_steps_num = list()
 
-# each time step
 
 for t in range(1, TIME_STEPS+1, 1):
     # load train data and border centers
     train_data = data_provider.train_representation(t).squeeze()
+    selected_idxs = np.random.choice(np.arange(len(train_data)), size=len(train_data) // 5, replace=False)
     train_data = train_data[selected_idxs]
+    while len(train_data) > 2000:
+        knn_idxs, _ = knn(train_data, k=15)
+        selected_idxs = prune_points(knn_idxs, 10, threshold=0.7)
+        if len(selected_idxs) < 300:
+            break
+        remain_idxs = [i for i in range(len(knn_idxs)) if i not in selected_idxs]
+        train_data = train_data[remain_idxs]
+
     border_centers = data_provider.border_representation(t).squeeze()
-    border_centers = border_centers[:LEN//100]
+    border_centers = border_centers[:len(train_data)//10]
 
     complex, sigmas_t1, rhos_t1, knn_idxs_t = fuzzy_complex(train_data, 15)
     bw_complex, sigmas_t2, rhos_t2, _ = boundary_wise_complex(train_data, border_centers, 15)
@@ -81,7 +90,9 @@ for t in range(1, TIME_STEPS+1, 1):
     fitting_data = np.concatenate((train_data, border_centers), axis=0)
     pred_model = data_provider.prediction_function(t)
     attention_t = get_attention(pred_model, fitting_data, temperature=.01, device=DEVICE, verbose=1)
-    increase_idx = (t-1) * int(len(train_data) * 1.1)
+    # increase_idx = (t-1) * int(len(train_data) * 1.1)
+    t_num = len(train_data)
+    b_num = len(border_centers)
     if edge_to is None:
         edge_to = edge_to_t
         edge_from = edge_from_t
@@ -93,8 +104,10 @@ for t in range(1, TIME_STEPS+1, 1):
         rhos = rhos_t
         knn_indices = knn_idxs_t
         n_vertices = len(train_data)
+        time_steps_num.append((t_num, b_num))
     else:
         # every round, we need to add len(data) to edge_to(as well as edge_from) index
+        increase_idx = len(feature_vectors)
         edge_to = np.concatenate((edge_to, edge_to_t + increase_idx), axis=0)
         edge_from = np.concatenate((edge_from, edge_from_t + increase_idx), axis=0)
         # normalize weight to be in range (0, 1)
@@ -106,16 +119,17 @@ for t in range(1, TIME_STEPS+1, 1):
         feature_vectors = np.concatenate((feature_vectors, fitting_data), axis=0)
         attention = np.concatenate((attention, attention_t), axis=0)
         knn_indices = np.concatenate((knn_indices, knn_idxs_t+increase_idx), axis=0)
+        time_steps_num.append((t_num, b_num))
 
 # boundary points...
 
 heads, tails, vals = construct_temporal_edge_dataset(X=feature_vectors,
-                                                     n_vertices=n_vertices,
+                                                     time_step_nums=time_steps_num,
                                                      persistent=TEMPORAL_PERSISTENT,
                                                      time_steps=TIME_STEPS,
-                                                     knn_indices=knn_indices,
                                                      sigmas=sigmas,
-                                                     rhos=rhos)
+                                                     rhos=rhos,
+                                                     k=15)
 # remove elements with very low probability
 eliminate_idxs = (vals < 1e-2)
 heads = heads[eliminate_idxs]

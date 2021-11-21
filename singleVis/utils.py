@@ -4,6 +4,7 @@ import tqdm
 import numpy as np
 import json
 import time
+from pynndescent import NNDescent
 
 
 def convert_distance_to_probability(distances, a=1.0, b=1.0):
@@ -221,3 +222,29 @@ def softmax_model(model, split): # softmax layer
 
 def gap_model(model, split): # GAP layer
     return torch.nn.Sequential(*(list(model.children())[:split]))
+
+
+def jaccard_similarity(l1, l2):
+    u = np.union1d(l1,l2)
+    i = np.intersect1d(l1,l2)
+    return float(len(i)) / len(u)
+
+def knn(data, k):
+    # number of trees in random projection forest
+    n_trees = min(64, 5 + int(round((data.shape[0]) ** 0.5 / 20.0)))
+    # max number of nearest neighbor iters to perform
+    n_iters = max(5, int(round(np.log2(data.shape[0]))))
+    # distance metric
+    metric = "euclidean"
+    # get nearest neighbors
+    nnd = NNDescent(
+        data,
+        n_neighbors=k,
+        metric=metric,
+        n_trees=n_trees,
+        n_iters=n_iters,
+        max_candidates=60,
+        verbose=True
+    )
+    knn_indices, knn_dists = nnd.neighbor_graph
+    return knn_indices, knn_dists
