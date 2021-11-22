@@ -11,6 +11,7 @@ from losses import SingleVisLoss, UmapLoss, ReconstructionLoss
 from edge_dataset import DataHandler
 from trainer import SingleVisTrainer
 from data import DataProvider
+from eval.evaluator import Evaluator
 
 from backend import fuzzy_complex, boundary_wise_complex, construct_step_edge_dataset, \
     construct_temporal_edge_dataset, get_attention, prune_points
@@ -26,12 +27,11 @@ TEMPORAL_PERSISTENT = 2
 NUMS = 5    # how many epoch should we go through for one pass
 PATIENT = 3
 
-content_path = "/Users/yangxianglin/DVI_data/resnet18_cifar10"
+content_path = "/home/xianglin/projects/DVI_data/TemporalExp/resnet18_cifar10"
 sys.path.append(content_path)
 from Model.model import *
 net = resnet18()
 classes = ("airplane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck")
-# selected_idxs = np.random.choice(np.arange(LEN), size=LEN//10, replace=False)
 
 data_provider = DataProvider(content_path, net, 1, TIME_STEPS, 1, split=-1, device=DEVICE, verbose=1)
 data_provider.initialize(LEN//10, l_bound=0.6)
@@ -60,7 +60,6 @@ weight = None
 probs = None
 feature_vectors = None
 attention = None
-# knn_indices = None
 n_vertices = -1
 time_steps_num = list()
 
@@ -89,7 +88,6 @@ for t in range(1, TIME_STEPS+1, 1):
     fitting_data = np.concatenate((train_data, border_centers), axis=0)
     pred_model = data_provider.prediction_function(t)
     attention_t = get_attention(pred_model, fitting_data, temperature=.01, device=DEVICE, verbose=1)
-    # increase_idx = (t-1) * int(len(train_data) * 1.1)
     t_num = len(train_data)
     b_num = len(border_centers)
     if edge_to is None:
@@ -117,7 +115,6 @@ for t in range(1, TIME_STEPS+1, 1):
         rhos = np.concatenate((rhos, rhos_t), axis=0)
         feature_vectors = np.concatenate((feature_vectors, fitting_data), axis=0)
         attention = np.concatenate((attention, attention_t), axis=0)
-        # knn_indices = np.concatenate((knn_indices, knn_idxs_t+increase_idx), axis=0)
         time_steps_num.append((t_num, b_num))
 
 # boundary points...
@@ -152,60 +149,9 @@ edge_loader = DataLoader(dataset, batch_size=1000, sampler=sampler)
 trainer = SingleVisTrainer(model, criterion, optimizer, edge_loader=edge_loader, DEVICE=DEVICE)
 trainer.train(PATIENT=PATIENT, MAX_EPOCH_NUMS=EPOCH_NUMS)
 trainer.save(save_dir=data_provider.model_path, file_name="SV")
-# trainer.load(file_path="")
 
 ########################################################################################################################
 # evaluate
 ########################################################################################################################
-
-
-"""evaluate training nn preserving property"""
-from singleVis.eval.evaluate import evaluate_proj_nn_perseverance_knn, evaluate_proj_boundary_perseverance_knn, evaluate_inv_accu
-for t in range(1, TIME_STEPS+1, 1):
-    train_data = data_provider.train_representation(t)
-    trainer.model.eval()
-    embedding = trainer.model.encoder(torch.from_numpy(train_data).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
-    val = evaluate_proj_nn_perseverance_knn(train_data, embedding, n_neighbors=15, metric="euclidean")
-    print("nn preserving: {:.2f}/15 in epoch {:d}".format(val, t))
-
-    border_centers = data_provider.border_representation(t)
-
-    low_center = trainer.model.encoder(torch.from_numpy(border_centers).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
-    low_train = trainer.model.encoder(torch.from_numpy(train_data).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
-
-    val = evaluate_proj_boundary_perseverance_knn(train_data, low_train, border_centers, low_center, n_neighbors=15)
-    print("boundary preserving: {:.2f}/15 in epoch {:d}".format(val, t))
-
-    inv_data = trainer.model.decoder(torch.from_numpy(embedding).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
-
-    pred = data_provider.get_pred(t, train_data).argmax(axis=1)
-    new_pred = data_provider.get_pred(t, inv_data).argmax(axis=1)
-
-    val = evaluate_inv_accu(pred, new_pred)
-    print("ppr: {:.2f} in epoch {:d}".format(val, t))
-
-
-
-
-"""evalute training temporal preserving property"""
-from singleVis.eval.evaluate import evaluate_proj_temporal_perseverance_corr
-import backend
-eval_num = 6
-l = LEN
-alpha = np.zeros((eval_num, l))
-delta_x = np.zeros((eval_num, l))
-for t in range(2, 8, 1):
-    prev_data = data_provider.train_representation(t-1)
-    prev_embedding = trainer.model.encoder(torch.from_numpy(prev_data).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
-
-    curr_data = data_provider.train_representation(t)
-    curr_embedding = trainer.model.encoder(torch.from_numpy(curr_data).to(dtype=torch.float32, device=DEVICE)).cpu().detach().numpy()
-
-    alpha_ = backend.find_neighbor_preserving_rate(prev_data, curr_data, n_neighbors=15)
-    delta_x_ = np.linalg.norm(prev_embedding - curr_embedding, axis=1)
-
-    alpha[t-2] = alpha_
-    delta_x[t-2] = delta_x_
-
-val_corr = evaluate_proj_temporal_perseverance_corr(alpha, delta_x)
-print("temporal preserving: {:.3f}".format(val_corr))
+evaluator = Evaluator(data_provider, trainer)
+evaluator.save_eval(n_neighbors=15, file_name="evaluation")
