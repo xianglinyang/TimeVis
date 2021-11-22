@@ -2,7 +2,7 @@ import os
 import json
 
 
-from evaluate import *
+from singleVis.eval.evaluate import *
 from singleVis.backend import *
 
 class Evaluator:
