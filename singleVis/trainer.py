@@ -1,3 +1,4 @@
+import os.path
 import time
 
 import torch
@@ -78,21 +79,21 @@ class SingleVisTrainer:
         time_spend = time_end - time_start
         print("Time spend: {:.2f}".format(time_spend))
 
-    def load(self, device, name="singleVisModel"):
+    def load(self, file_path):
         """
         save all parameters...
         :param name:
         :return:
         """
-        save_model = torch.load(name + '.pth')
+        save_model = torch.load(file_path)
         self._loss = save_model["loss"]
         self.model.load_state_dict(save_model["state_dict"])
         self.optimizer.load_state_dict(save_model["optimizer"])
-        self.model.to(device)
-        self.optimizer.to(device)
+        self.model.to(self.DEVICE)
+        self.optimizer.to(self.DEVICE)
         print("Successfully load visualization mdoel")
 
-    def save(self, name="singleVisModel"):
+    def save(self, save_dir, file_name="singleVisModel"):
         """
         save all parameters...
         :param name:
@@ -102,4 +103,5 @@ class SingleVisTrainer:
             "loss": self.loss,
             "state_dict": self.model.state_dict(),
             "optimizer": self.optimizer.state_dict()}
-        torch.save(save_model, name + '.pth')
+        save_path = os.path.join(save_dir, file_name + '.pth')
+        torch.save(save_model, save_path)

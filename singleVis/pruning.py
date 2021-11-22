@@ -151,8 +151,8 @@ edge_loader = DataLoader(dataset, batch_size=1000, sampler=sampler)
 
 trainer = SingleVisTrainer(model, criterion, optimizer, edge_loader=edge_loader, DEVICE=DEVICE)
 trainer.train(PATIENT=PATIENT, MAX_EPOCH_NUMS=EPOCH_NUMS)
-trainer.save(name="..//result//cifar10")
-# trainer.load(device=DEVICE, name="..//model//cifar10_epoch_10")
+trainer.save(save_dir=data_provider.model_path, file_name="SV")
+# trainer.load(file_path="")
 
 ########################################################################################################################
 # evaluate

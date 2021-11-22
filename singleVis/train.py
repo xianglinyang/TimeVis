@@ -157,8 +157,8 @@ for epoch in range(EPOCH_NUMS):
 time_end = time.time()
 time_spend = time_end - time_start
 print("Time spend: {:.2f}".format(time_spend))
-trainer.save(name="..//model//cifar10")
-# trainer.load(device=DEVICE, name="..//model//cifar10_epoch_10")
+trainer.save(save_dir=data_provider.model_path, file_name="SV")
+# trainer.load(file_path="")
 
 ########################################################################################################################
 # evaluate
