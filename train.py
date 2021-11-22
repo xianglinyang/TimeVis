@@ -6,13 +6,13 @@ from torch.utils.data import WeightedRandomSampler
 from umap.umap_ import find_ab_params
 import time
 
-from SingleVisualizationModel import SingleVisualizationModel
-from losses import SingleVisLoss, UmapLoss, ReconstructionLoss
-from edge_dataset import DataHandler
-from trainer import SingleVisTrainer
-from data import DataProvider
+from singleVis.SingleVisualizationModel import SingleVisualizationModel
+from singleVis.losses import SingleVisLoss, UmapLoss, ReconstructionLoss
+from singleVis.edge_dataset import DataHandler
+from singleVis.trainer import SingleVisTrainer
+from singleVis.data import DataProvider
 
-from backend import fuzzy_complex, boundary_wise_complex, construct_step_edge_dataset, \
+from singleVis.backend import fuzzy_complex, boundary_wise_complex, construct_step_edge_dataset, \
     construct_temporal_edge_dataset, get_attention
 
 
@@ -195,7 +195,7 @@ for t in range(1, TIME_STEPS+1, 1):
 
 """evalute training temporal preserving property"""
 from singleVis.eval.evaluate import evaluate_proj_temporal_perseverance_corr
-import backend
+# import singleVis.backend
 eval_num = 6
 l = LEN
 alpha = np.zeros((eval_num, l))
