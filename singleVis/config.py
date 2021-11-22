@@ -15,7 +15,7 @@ dataset_config = {
 training_config = {
     "EPOCH_NUM": 100,
     "TIME_STEPS": 7,
-    "TEMPORAL_PERSISTENT": 3,
+    "TEMPORAL_PERSISTENT": 2,
     "NUMS": 5,   # the number of epochs to go through in one go
     "PATIENT": 3,    # early stopping patient
     "DOWNSAMPLING_RATE": .1,

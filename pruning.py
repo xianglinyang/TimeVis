@@ -5,29 +5,39 @@ from torch.utils.data import DataLoader
 from torch.utils.data import WeightedRandomSampler
 from umap.umap_ import find_ab_params
 import time
+import argparse
 
-from SingleVisualizationModel import SingleVisualizationModel
-from losses import SingleVisLoss, UmapLoss, ReconstructionLoss
-from edge_dataset import DataHandler
-from trainer import SingleVisTrainer
-from data import DataProvider
-from eval.evaluator import Evaluator
-
-from backend import fuzzy_complex, boundary_wise_complex, construct_step_edge_dataset, \
+from singleVis.SingleVisualizationModel import SingleVisualizationModel
+from singleVis.losses import SingleVisLoss, UmapLoss, ReconstructionLoss
+from singleVis.edge_dataset import DataHandler
+from singleVis.trainer import SingleVisTrainer
+from singleVis.data import DataProvider
+from singleVis.eval.evaluator import Evaluator
+from singleVis.backend import fuzzy_complex, boundary_wise_complex, construct_step_edge_dataset, \
     construct_temporal_edge_dataset, get_attention, prune_points
-from utils import knn
+from singleVis.utils import knn
 
+import singleVis.config as config
+parser = argparse.ArgumentParser(description='Process hyperparameters...')
+parser.add_argument('--content_path', type=str)
+parser.add_argument('-d','--dataset', choices=['cifar10', 'mnist', 'fmnist'])
+
+args = parser.parse_args()
+
+CONTENT_PATH = args.content_path
+DATASET = args.dataset
+LEN = config.dataset_config[DATASET]["TRAINING_LEN"]
 
 # define hyperparameters
-DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-EPOCH_NUMS = 100
-LEN = 50000
-TIME_STEPS = 7
-TEMPORAL_PERSISTENT = 2
-NUMS = 5    # how many epoch should we go through for one pass
-PATIENT = 3
 
-content_path = "/home/xianglin/projects/DVI_data/TemporalExp/resnet18_cifar10"
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+EPOCH_NUMS = config.training_config["EPOCH_NUMS"]
+TIME_STEPS = config.training_config["TIME_STEPS"]
+TEMPORAL_PERSISTENT = config.training_config["TEMPORAL_PERSISTENT"]
+NUMS = config.training_config["NUMS"]    # how many epoch should we go through for one pass
+PATIENT = config.training_config["PATIENT"]
+
+content_path = CONTENT_PATH
 sys.path.append(content_path)
 from Model.model import *
 net = resnet18()
