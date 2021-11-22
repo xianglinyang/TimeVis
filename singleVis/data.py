@@ -142,10 +142,10 @@ class DataProvider:
             # get gap layer data
             border_points = border_points.to(self.DEVICE)
             border_centers = batch_run(repr_model, border_points)
-            location = os.path.join(self.model_path, "Epoch_{:d}".format(n_epoch), "advance_border_centers.npy")
+            location = os.path.join(self.model_path, "Epoch_{:d}".format(n_epoch), "border_centers.npy")
             np.save(location, border_centers)
 
-            location = os.path.join(self.model_path, "Epoch_{:d}".format(n_epoch), "ori_advance_border_centers.npy")
+            location = os.path.join(self.model_path, "Epoch_{:d}".format(n_epoch), "ori_border_centers.npy")
             np.save(location, border_points.cpu().numpy())
 
             if self.verbose > 0:
@@ -196,7 +196,7 @@ class DataProvider:
 
     def border_representation(self, epoch):
         border_centers_loc = os.path.join(self.model_path, "Epoch_{:d}".format(epoch),
-                                          "advance_border_centers.npy")
+                                          "border_centers.npy")
         try:
             border_centers = np.load(border_centers_loc)
         except Exception as e:
