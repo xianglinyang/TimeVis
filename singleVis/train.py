@@ -1,6 +1,5 @@
 import torch
 import sys
-import os
 import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.data import WeightedRandomSampler
@@ -11,7 +10,6 @@ from SingleVisualizationModel import SingleVisualizationModel
 from losses import SingleVisLoss, UmapLoss, ReconstructionLoss
 from edge_dataset import DataHandler
 from trainer import SingleVisTrainer
-from utils import batch_run
 from data import DataProvider
 
 from backend import fuzzy_complex, boundary_wise_complex, construct_step_edge_dataset, \
@@ -35,7 +33,7 @@ classes = ("airplane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "sh
 selected_idxs = np.random.choice(np.arange(LEN), size=LEN//10, replace=False)
 
 data_provider = DataProvider(content_path, net, 1, TIME_STEPS, 1, split=-1, device=DEVICE, verbose=1)
-# data_provider.initialize(LEN//10, l_bound=0.6)
+data_provider.initialize(LEN//10, l_bound=0.6)
 
 time_start = time.time()
 model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256)
@@ -62,7 +60,7 @@ probs = None
 feature_vectors = None
 attention = None
 knn_indices = None
-n_vertices = -1
+time_steps_num = list()
 
 # each time step
 
@@ -71,7 +69,7 @@ for t in range(1, TIME_STEPS+1, 1):
     train_data = data_provider.train_representation(t).squeeze()
     train_data = train_data[selected_idxs]
     border_centers = data_provider.border_representation(t).squeeze()
-    border_centers = border_centers[:LEN//100]
+    border_centers = border_centers[:len(train_data)//100]
 
     complex, sigmas_t1, rhos_t1, knn_idxs_t = fuzzy_complex(train_data, 15)
     bw_complex, sigmas_t2, rhos_t2, _ = boundary_wise_complex(train_data, border_centers, 15)
@@ -81,7 +79,9 @@ for t in range(1, TIME_STEPS+1, 1):
     fitting_data = np.concatenate((train_data, border_centers), axis=0)
     pred_model = data_provider.prediction_function(t)
     attention_t = get_attention(pred_model, fitting_data, temperature=.01, device=DEVICE, verbose=1)
-    increase_idx = (t-1) * int(len(train_data) * 1.1)
+    # increase_idx = (t-1) * int(len(train_data) * 1.1)
+    t_num = len(train_data)
+    b_num = len(border_centers)
     if edge_to is None:
         edge_to = edge_to_t
         edge_from = edge_from_t
@@ -92,9 +92,10 @@ for t in range(1, TIME_STEPS+1, 1):
         sigmas = sigmas_t
         rhos = rhos_t
         knn_indices = knn_idxs_t
-        n_vertices = len(train_data)
+        time_steps_num.append((t_num, b_num))
     else:
         # every round, we need to add len(data) to edge_to(as well as edge_from) index
+        increase_idx = len(feature_vectors)
         edge_to = np.concatenate((edge_to, edge_to_t + increase_idx), axis=0)
         edge_from = np.concatenate((edge_from, edge_from_t + increase_idx), axis=0)
         # normalize weight to be in range (0, 1)
@@ -105,15 +106,16 @@ for t in range(1, TIME_STEPS+1, 1):
         rhos = np.concatenate((rhos, rhos_t), axis=0)
         feature_vectors = np.concatenate((feature_vectors, fitting_data), axis=0)
         attention = np.concatenate((attention, attention_t), axis=0)
-        knn_indices = np.concatenate((knn_indices, knn_idxs_t+increase_idx), axis=0)
+        # knn_indices = np.concatenate((knn_indices, knn_idxs_t+increase_idx), axis=0)
+        time_steps_num.append((t_num, b_num))
 
 # boundary points...
 
 heads, tails, vals = construct_temporal_edge_dataset(X=feature_vectors,
-                                                     n_vertices=n_vertices,
+                                                     time_step_nums=time_steps_num,
                                                      persistent=TEMPORAL_PERSISTENT,
                                                      time_steps=TIME_STEPS,
-                                                     knn_indices=knn_indices,
+                                                     # knn_indices=knn_indices,
                                                      sigmas=sigmas,
                                                      rhos=rhos)
 # remove elements with very low probability
@@ -164,7 +166,7 @@ trainer.save(name="..//model//cifar10")
 
 
 """evaluate training nn preserving property"""
-from evaluate import evaluate_proj_nn_perseverance_knn, evaluate_proj_boundary_perseverance_knn, evaluate_inv_accu
+from singleVis.eval.evaluate import evaluate_proj_nn_perseverance_knn, evaluate_proj_boundary_perseverance_knn, evaluate_inv_accu
 for t in range(1, TIME_STEPS+1, 1):
     train_data = data_provider.train_representation(t)
     trainer.model.eval()
@@ -192,7 +194,7 @@ for t in range(1, TIME_STEPS+1, 1):
 
 
 """evalute training temporal preserving property"""
-from evaluate import evaluate_proj_temporal_perseverance_corr
+from singleVis.eval.evaluate import evaluate_proj_temporal_perseverance_corr
 import backend
 eval_num = 6
 l = LEN

@@ -1,6 +1,5 @@
 import torch
 import sys
-import os
 import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.data import WeightedRandomSampler
@@ -35,7 +34,7 @@ classes = ("airplane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "sh
 # selected_idxs = np.random.choice(np.arange(LEN), size=LEN//10, replace=False)
 
 data_provider = DataProvider(content_path, net, 1, TIME_STEPS, 1, split=-1, device=DEVICE, verbose=1)
-# data_provider.initialize(LEN//10, l_bound=0.6)
+data_provider.initialize(LEN//10, l_bound=0.6)
 
 time_start = time.time()
 model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256)
@@ -61,7 +60,7 @@ weight = None
 probs = None
 feature_vectors = None
 attention = None
-knn_indices = None
+# knn_indices = None
 n_vertices = -1
 time_steps_num = list()
 
@@ -102,7 +101,7 @@ for t in range(1, TIME_STEPS+1, 1):
         attention = attention_t
         sigmas = sigmas_t
         rhos = rhos_t
-        knn_indices = knn_idxs_t
+        # knn_indices = knn_idxs_t
         n_vertices = len(train_data)
         time_steps_num.append((t_num, b_num))
     else:
@@ -118,7 +117,7 @@ for t in range(1, TIME_STEPS+1, 1):
         rhos = np.concatenate((rhos, rhos_t), axis=0)
         feature_vectors = np.concatenate((feature_vectors, fitting_data), axis=0)
         attention = np.concatenate((attention, attention_t), axis=0)
-        knn_indices = np.concatenate((knn_indices, knn_idxs_t+increase_idx), axis=0)
+        # knn_indices = np.concatenate((knn_indices, knn_idxs_t+increase_idx), axis=0)
         time_steps_num.append((t_num, b_num))
 
 # boundary points...
@@ -144,7 +143,6 @@ edge_from = np.concatenate((edge_from, tails), axis=0)
 
 dataset = DataHandler(edge_to, edge_from, feature_vectors, attention)
 
-
 result = np.zeros(weight.shape[0], dtype=np.float64)
 n_samples = int(np.sum(NUMS * probs) // 1)
 
@@ -152,24 +150,8 @@ sampler = WeightedRandomSampler(probs, n_samples, replacement=False)
 edge_loader = DataLoader(dataset, batch_size=1000, sampler=sampler)
 
 trainer = SingleVisTrainer(model, criterion, optimizer, edge_loader=edge_loader, DEVICE=DEVICE)
-patient = PATIENT
-for epoch in range(EPOCH_NUMS):
-    print("====================\nepoch:{}\n===================".format(epoch))
-    prev_loss = trainer.loss
-    loss = trainer.train_step()
-    # early stop, check whether converge or not
-    if prev_loss - loss < 1E-2:
-        if patient == 0:
-            break
-        else:
-            patient -= 1
-    else:
-        patient = PATIENT
-
-time_end = time.time()
-time_spend = time_end - time_start
-print("Time spend: {:.2f}".format(time_spend))
-trainer.save(name="..//model//cifar10")
+trainer.train(PATIENT=PATIENT, MAX_EPOCH_NUMS=EPOCH_NUMS)
+trainer.save(name="..//result//cifar10")
 # trainer.load(device=DEVICE, name="..//model//cifar10_epoch_10")
 
 ########################################################################################################################
@@ -178,7 +160,7 @@ trainer.save(name="..//model//cifar10")
 
 
 """evaluate training nn preserving property"""
-from evaluate import evaluate_proj_nn_perseverance_knn, evaluate_proj_boundary_perseverance_knn, evaluate_inv_accu
+from singleVis.eval.evaluate import evaluate_proj_nn_perseverance_knn, evaluate_proj_boundary_perseverance_knn, evaluate_inv_accu
 for t in range(1, TIME_STEPS+1, 1):
     train_data = data_provider.train_representation(t)
     trainer.model.eval()
@@ -206,7 +188,7 @@ for t in range(1, TIME_STEPS+1, 1):
 
 
 """evalute training temporal preserving property"""
-from evaluate import evaluate_proj_temporal_perseverance_corr
+from singleVis.eval.evaluate import evaluate_proj_temporal_perseverance_corr
 import backend
 eval_num = 6
 l = LEN

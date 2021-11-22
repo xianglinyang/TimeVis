@@ -1,7 +1,7 @@
+import time
+
 import torch
-import os
-import numpy as np
-from evaluate import evaluate_proj_nn_perseverance_knn
+
 """
 1. construct a spatio-temporal complex
 2. construct an edge-dataset
@@ -58,8 +58,25 @@ class SingleVisTrainer:
         return self.loss
 
 
-    def train(self):
-        pass
+    def train(self, PATIENT, MAX_EPOCH_NUMS):
+        patient = PATIENT
+        time_start = time.time()
+        for epoch in range(MAX_EPOCH_NUMS):
+            print("====================\nepoch:{}\n===================".format(epoch))
+            prev_loss = self.loss
+            loss = self.train_step()
+            # early stop, check whether converge or not
+            if prev_loss - loss < 1E-2:
+                if patient == 0:
+                    break
+                else:
+                    patient -= 1
+            else:
+                patient = PATIENT
+
+        time_end = time.time()
+        time_spend = time_end - time_start
+        print("Time spend: {:.2f}".format(time_spend))
 
     def load(self, device, name="singleVisModel"):
         """

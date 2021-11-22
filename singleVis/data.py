@@ -20,6 +20,25 @@ class DataProvider:
         self.verbose = verbose
         self.model_path = os.path.join(self.content_path, "Model")
 
+    @property
+    def train_num(self):
+        training_data_path = os.path.join(self.content_path, "Training_data")
+        training_data = torch.load(os.path.join(training_data_path, "training_dataset_data.pth"),
+                                   map_location=self.DEVICE)
+        train_num = len(training_data)
+        del training_data
+        gc.collect()
+        return train_num
+
+    @property
+    def test_num(self):
+        testing_data_path = os.path.join(self.content_path, "Testing_data")
+        testing_data = torch.load(os.path.join(testing_data_path, "testing_dataset_data.pth"),
+                                  map_location=self.DEVICE)
+        test_num = len(testing_data)
+        del testing_data
+        gc.collect()
+        return test_num
 
     def _meta_data(self):
         time_inference = list()
@@ -147,7 +166,7 @@ class DataProvider:
             json.dump(evaluation, f)
 
     def initialize(self, num, l_bound):
-        # self._meta_data()
+        self._meta_data()
         self._estimate_boundary(num, l_bound)
 
     def train_representation(self, epoch):
