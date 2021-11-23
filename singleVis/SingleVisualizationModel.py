@@ -38,7 +38,7 @@ class SingleVisualizationModel(nn.Module):
         embedding_from = self.encoder(edge_from)
         recon_to = self.decoder(embedding_to)
         recon_from = self.decoder(embedding_from)
-
+        
         outputs["umap"] = (embedding_to, embedding_from)
         outputs["recon"] = (recon_to, recon_from)
 

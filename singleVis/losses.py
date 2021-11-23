@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from utils import convert_distance_to_probability, compute_cross_entropy
+from singleVis.utils import convert_distance_to_probability, compute_cross_entropy
 
 """Losses modules for preserving four propertes"""
 # https://github.com/ynjnpa/VocGAN/blob/5339ee1d46b8337205bec5e921897de30a9211a1/utils/stft_loss.py for losses module
@@ -68,10 +68,10 @@ class ReconstructionLoss(nn.Module):
 
     def forward(self, edge_to, edge_from, recon_to, recon_from, a_to, a_from):
     # def forward(self, edge_to, edge_from, recon_to, recon_from):
-        loss1 = torch.mean(torch.mean(torch.multiply(torch.pow((1+a_to), self._beta), torch.pow(edge_to - recon_to, 2)), 1))
-        loss2 = torch.mean(torch.mean(torch.multiply(torch.pow((1+a_from), self._beta), torch.pow(edge_from - recon_from, 2)), 1))
-        # loss1 = torch.mean(torch.mean(torch.pow(edge_to - recon_to, 2), 1))
-        # loss2 = torch.mean(torch.mean(torch.pow(edge_from - recon_from, 2), 1))
+        # loss1 = torch.mean(torch.mean(torch.multiply(torch.pow((1+a_to), self._beta), torch.pow(edge_to - recon_to, 2)), 1))
+        # loss2 = torch.mean(torch.mean(torch.multiply(torch.pow((1+a_from), self._beta), torch.pow(edge_from - recon_from, 2)), 1))
+        loss1 = torch.mean(torch.mean(torch.pow(edge_to - recon_to, 2), 1))
+        loss2 = torch.mean(torch.mean(torch.pow(edge_from - recon_from, 2), 1))
         return (loss1 + loss2)/2
 
 

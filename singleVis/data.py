@@ -1,7 +1,7 @@
 import os
 import gc
 import time
-from utils import *
+from singleVis.utils import *
 
 """
 DataContainder module
@@ -50,6 +50,7 @@ class DataProvider:
                                        map_location=self.DEVICE)
 
         for n_epoch in range(self.s, self.e + 1, self.p):
+            t_s = time.time()
             index_file = os.path.join(self.model_path, "Epoch_{:d}".format(n_epoch), "index.json")
             index = load_labelled_data_index(index_file)
             training_data = training_data[index]
@@ -79,10 +80,12 @@ class DataProvider:
             location = os.path.join(self.model_path, "Epoch_{:d}".format(n_epoch), "test_data.npy")
             np.save(location, test_data_representation)
 
+            t_e = time.time()
+            time_inference.append(t_e-t_s)
             if self.verbose > 0:
                 print("Finish inferencing data for Epoch {:d}...".format(n_epoch))
         print(
-            "Average time for generate border points: {:.4f}".format(sum(time_inference) / len(time_inference)))
+            "Average time for inferencing data: {:.4f}".format(sum(time_inference) / len(time_inference)))
 
         # save result
         save_dir = os.path.join(self.model_path, "time.json")
@@ -180,15 +183,16 @@ class DataProvider:
         except Exception as e:
             print("no train data saved for Epoch {}".format(epoch))
             train_data = None
-        return train_data
+        return train_data.squeeze()
 
     def test_representation(self, epoch):
         data_loc = os.path.join(self.model_path, "Epoch_{:d}".format(epoch), "test_data.npy")
-        index_file = os.path.join(self.model_path, "Epoch_{:d}".format(epoch), "test_index.json")
-        index = load_labelled_data_index(index_file)
         try:
-            test_data = np.load(data_loc)
-            test_data = test_data[index]
+            test_data = np.load(data_loc).squeeze()
+            index_file = os.path.join(self.model_path, "Epoch_{:d}".format(epoch), "test_index.json")
+            if os.path.exists(index_file):
+                index = load_labelled_data_index(index_file)
+                test_data = test_data[index]
         except Exception as e:
             print("no test data saved for Epoch {}".format(epoch))
             test_data = None
@@ -198,7 +202,7 @@ class DataProvider:
         border_centers_loc = os.path.join(self.model_path, "Epoch_{:d}".format(epoch),
                                           "border_centers.npy")
         try:
-            border_centers = np.load(border_centers_loc)
+            border_centers = np.load(border_centers_loc).squeeze()
         except Exception as e:
             print("no border points saved for Epoch {}".format(epoch))
             border_centers = None

@@ -172,17 +172,24 @@ class Evaluator:
             f = open(save_dir, "r")
             evaluation = json.load(f)
             f.close()
+        evaluation[n_neighbors] = dict()
+        evaluation[n_neighbors]["nn_train"] = dict()
+        evaluation[n_neighbors]["nn_test"] = dict()
+        evaluation[n_neighbors]["b_train"] = dict()
+        evaluation[n_neighbors]["b_test"] = dict()
+        evaluation["ppr_train"] = dict()
+        evaluation["ppr_test"] = dict()
+
         for epoch in range(self.data_provider.s, self.data_provider.e+1, self.data_provider.p):
-            evaluation[n_neighbors] = dict()
 
-            evaluation[n_neighbors]["nn_train"] = self.eval_nn_train(epoch, n_neighbors)
-            evaluation[n_neighbors]["nn_test"] = self.eval_nn_test(epoch, n_neighbors)
+            evaluation[n_neighbors]["nn_train"][epoch] = self.eval_nn_train(epoch, n_neighbors)
+            evaluation[n_neighbors]["nn_test"][epoch] = self.eval_nn_test(epoch, n_neighbors)
 
-            evaluation[n_neighbors]["b_train"] = self.eval_b_train(epoch, n_neighbors)
-            evaluation[n_neighbors]["b_test"] = self.eval_b_test(epoch, n_neighbors)
+            evaluation[n_neighbors]["b_train"][epoch] = self.eval_b_train(epoch, n_neighbors)
+            evaluation[n_neighbors]["b_test"][epoch] = self.eval_b_test(epoch, n_neighbors)
 
-            evaluation["ppr_train"] = self.eval_inv_train(epoch)
-            evaluation["ppr_test"] = self.eval_inv_test(epoch)
+            evaluation["ppr_train"][epoch] = self.eval_inv_train(epoch)
+            evaluation["ppr_test"][epoch] = self.eval_inv_test(epoch)
 
         evaluation[n_neighbors]["temporal_train"] = self.eval_temporal_train(n_neighbors)
         evaluation[n_neighbors]["temporal_test"] = self.eval_temporal_test(n_neighbors)

@@ -1,5 +1,6 @@
 import torch
 import sys
+import os
 import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.data import WeightedRandomSampler
@@ -31,7 +32,7 @@ LEN = config.dataset_config[DATASET]["TRAINING_LEN"]
 # define hyperparameters
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-EPOCH_NUMS = config.training_config["EPOCH_NUMS"]
+EPOCH_NUMS = config.training_config["EPOCH_NUM"]
 TIME_STEPS = config.training_config["TIME_STEPS"]
 TEMPORAL_PERSISTENT = config.training_config["TEMPORAL_PERSISTENT"]
 NUMS = config.training_config["NUMS"]    # how many epoch should we go through for one pass
@@ -44,7 +45,7 @@ net = resnet18()
 classes = ("airplane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck")
 
 data_provider = DataProvider(content_path, net, 1, TIME_STEPS, 1, split=-1, device=DEVICE, verbose=1)
-data_provider.initialize(LEN//10, l_bound=0.6)
+# data_provider.initialize(LEN//10, l_bound=0.6)
 
 time_start = time.time()
 model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256)
@@ -53,7 +54,7 @@ min_dist = .1
 _a, _b = find_ab_params(1.0, min_dist)
 umap_loss_fn = UmapLoss(negative_sample_rate, _a, _b, repulsion_strength=1.0, device=DEVICE)
 recon_loss_fn = ReconstructionLoss(beta=1.0)
-criterion = SingleVisLoss(umap_loss_fn, recon_loss_fn, lambd=1/50.)
+criterion = SingleVisLoss(umap_loss_fn, recon_loss_fn, lambd=50.)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=.01, weight_decay=1e-5)
 # optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
@@ -77,15 +78,16 @@ time_steps_num = list()
 for t in range(1, TIME_STEPS+1, 1):
     # load train data and border centers
     train_data = data_provider.train_representation(t).squeeze()
-    selected_idxs = np.random.choice(np.arange(len(train_data)), size=len(train_data) // 5, replace=False)
-    train_data = train_data[selected_idxs]
+    # selected_idxs = np.random.choice(np.arange(len(train_data)), size=len(train_data) // 5, replace=False)
+    # train_data = train_data[selected_idxs]
     while len(train_data) > 2000:
         knn_idxs, _ = knn(train_data, k=15)
-        selected_idxs = prune_points(knn_idxs, 10, threshold=0.7)
+        selected_idxs = prune_points(knn_idxs, 10, threshold=0.6)
         if len(selected_idxs) < 300:
             break
         remain_idxs = [i for i in range(len(knn_idxs)) if i not in selected_idxs]
         train_data = train_data[remain_idxs]
+    print("Epoch {:d} remain {:d} points".format(t, len(train_data)))
 
     border_centers = data_provider.border_representation(t).squeeze()
     border_centers = border_centers[:len(train_data)//10]
@@ -150,7 +152,7 @@ edge_from = np.concatenate((edge_from, tails), axis=0)
 
 dataset = DataHandler(edge_to, edge_from, feature_vectors, attention)
 
-result = np.zeros(weight.shape[0], dtype=np.float64)
+# result = np.zeros(weight.shape[0], dtype=np.float64)
 n_samples = int(np.sum(NUMS * probs) // 1)
 
 sampler = WeightedRandomSampler(probs, n_samples, replacement=False)
@@ -159,6 +161,7 @@ edge_loader = DataLoader(dataset, batch_size=1000, sampler=sampler)
 trainer = SingleVisTrainer(model, criterion, optimizer, edge_loader=edge_loader, DEVICE=DEVICE)
 trainer.train(PATIENT=PATIENT, MAX_EPOCH_NUMS=EPOCH_NUMS)
 trainer.save(save_dir=data_provider.model_path, file_name="SV")
+trainer.load(file_path=os.path.join(data_provider.model_path,"SV.pth"))
 
 ########################################################################################################################
 # evaluate

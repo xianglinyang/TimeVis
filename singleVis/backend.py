@@ -14,7 +14,7 @@ from sklearn.neighbors import KDTree
 import numpy as np
 import scipy.sparse
 from umap.umap_ import compute_membership_strengths
-from utils import jaccard_similarity
+from singleVis.utils import jaccard_similarity
 
 
 def get_graph_elements(graph_, n_epochs):
@@ -199,14 +199,14 @@ def construct_temporal_edge_dataset(X, time_step_nums, persistent, time_steps, s
             increase_idx = time_step_num[step+window]
 
             tree = KDTree(next_data)
-            _, knn_indices = tree.query(curr_data, k=15)
+            knn_dists_t, knn_indices = tree.query(curr_data, k=15)
             knn_indices = knn_indices + increase_idx
 
             knn_indices_in[time_step_num[step]: time_step_num[step] + time_step_nums[step][0]] = knn_indices
             knn_indices_in = knn_indices_in.astype('int')
 
-            indices = np.arange(time_step_num[step], time_step_num[step] + time_step_nums[step][0], 1)
-            knn_dists_t = knn_dists(X, indices, knn_indices)
+            # indices = np.arange(time_step_num[step], time_step_num[step] + time_step_nums[step][0], 1)
+            # knn_dists_t = knn_dists(X, indices, knn_indices)
 
             knn_dist[time_step_num[step]:time_step_num[step] + time_step_nums[step][0]] = knn_dists_t
             knn_dist = knn_dist.astype('float32')
@@ -227,14 +227,14 @@ def construct_temporal_edge_dataset(X, time_step_nums, persistent, time_steps, s
             increase_idx = time_step_num[step - window]
 
             tree = KDTree(prev_data)
-            _, knn_indices = tree.query(curr_data, k=15)
+            knn_dists_t, knn_indices = tree.query(curr_data, k=15)
             knn_indices = knn_indices + increase_idx
 
             knn_indices_in[time_step_num[step]: time_step_num[step] + time_step_nums[step][0]] = knn_indices
             knn_indices_in = knn_indices_in.astype('int')
 
-            indices = np.arange(time_step_num[step], time_step_num[step] + time_step_nums[step][0], 1)
-            knn_dists_t = knn_dists(X, indices, knn_indices)
+            # indices = np.arange(time_step_num[step], time_step_num[step] + time_step_nums[step][0], 1)
+            # knn_dists_t = knn_dists(X, indices, knn_indices)
 
             knn_dist[time_step_num[step]:time_step_num[step] + time_step_nums[step][0]] = knn_dists_t
             knn_dist = knn_dist.astype('float32')

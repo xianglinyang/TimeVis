@@ -90,7 +90,7 @@ class SingleVisTrainer:
         self.model.load_state_dict(save_model["state_dict"])
         self.optimizer.load_state_dict(save_model["optimizer"])
         self.model.to(self.DEVICE)
-        self.optimizer.to(self.DEVICE)
+        # self.optimizer.to(self.DEVICE)
         print("Successfully load visualization mdoel")
 
     def save(self, save_dir, file_name="singleVisModel"):
