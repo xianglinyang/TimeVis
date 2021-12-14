@@ -5,6 +5,7 @@ import numpy as np
 import json
 import time
 from pynndescent import NNDescent
+from sklearn.neighbors import KDTree
 
 
 def convert_distance_to_probability(distances, a=1.0, b=1.0):
@@ -248,3 +249,14 @@ def knn(data, k):
     )
     knn_indices, knn_dists = nnd.neighbor_graph
     return knn_indices, knn_dists
+
+
+def hausdorff_dist(X,subset_idxs, n_neighbors, metric="euclidean", verbose=1):
+    t_s = time.time()
+    tree = KDTree(X[subset_idxs])
+    knn_dists, _ = tree.query(X, k=n_neighbors)
+    hausdorff_dist = knn_dists.max()
+    t_e = time.time()
+    if verbose>0:
+        print("Calculate hausdorff distance for {:d}/{:d} in {:.3f} seconds...".format(len(subset_idxs),len(X), t_e-t_s))
+    return hausdorff_dist, round(t_e-t_s,3)

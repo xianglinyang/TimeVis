@@ -141,10 +141,11 @@ def construct_step_edge_dataset(vr_complex, bw_complex, n_epochs):
     _, vr_head, vr_tail, vr_weight, _ = get_graph_elements(vr_complex, n_epochs)
     # get data from graph
     _, bw_head, bw_tail, bw_weight, _ = get_graph_elements(bw_complex, n_epochs)
+    # bw_weight = bw_weight*10
 
     head = np.concatenate((vr_head, bw_head), axis=0)
     tail = np.concatenate((vr_tail, bw_tail), axis=0)
-    weight = np.concatenate((vr_head, bw_weight), axis=0)
+    weight = np.concatenate((vr_weight, bw_weight), axis=0)
 
     return head, tail, weight
 
@@ -237,6 +238,82 @@ def construct_temporal_edge_dataset(X, time_step_nums, persistent, time_steps, s
             # knn_dists_t = knn_dists(X, indices, knn_indices)
 
             knn_dist[time_step_num[step]:time_step_num[step] + time_step_nums[step][0]] = knn_dists_t
+            knn_dist = knn_dist.astype('float32')
+
+            rows_t, cols_t, vals_t, _ = compute_membership_strengths(knn_indices_in, knn_dist, sigmas, rhos, return_dists=False)
+            idxs = vals_t > 0
+            rows = np.concatenate((rows, rows_t[idxs]), axis=0)
+            cols = np.concatenate((cols, cols_t[idxs]), axis=0)
+            vals = np.concatenate((vals, vals_t[idxs]), axis=0)
+
+    return rows, cols, vals
+
+
+def construct_temporal_edge_dataset2(X, time_step_nums, persistent, time_steps, knn_indices, sigmas, rhos, k=15):
+    """
+    construct temporal edges based on same data
+    link data to its next epoch
+    :param time_step_nums: [(train_num, b_num)]
+    :param persistent: the length of sliding window
+    :param time_steps: the number of time steps we are looking at
+    :param knn_indices: (n_vertices*1.1*time_steps, k)
+    :return:
+    """
+    rows = np.zeros(1, dtype=np.int32)
+    cols = np.zeros(1, dtype=np.int32)
+    vals = np.zeros(1, dtype=np.float32)
+    n_all = 0
+    time_step_num = list()
+    for i in time_step_nums:
+        time_step_num.append(n_all)
+        n_all = n_all + i[0]
+    n_all = 0
+    all_step_num = list()
+    for i in time_step_nums:
+        all_step_num.append(n_all)
+        n_all = n_all + i[0] + i[1]
+    
+    # forward
+    for window in range(1, persistent + 1, 1):
+        for step in range(0, time_steps - window, 1):
+            knn_indices_in = - np.ones((n_all, k))
+            knn_dist = np.zeros((n_all, k))
+
+            # curr_data = X[time_step_num[step]:time_step_num[step] + time_step_nums[step][0]]
+            # next_data = X[time_step_num[step+window]:time_step_num[step+window] + time_step_nums[step + window][0]]
+            # increase_idx = time_step_num[step+window]
+
+            next_knn = knn_indices[time_step_num[step+window]:time_step_num[step+window] + time_step_nums[step + window][0]]
+
+            knn_indices_in[all_step_num[step]: all_step_num[step] + time_step_nums[step + window][0]] = next_knn
+            knn_indices_in = knn_indices_in.astype('int')
+
+            indices = np.arange(all_step_num[step], all_step_num[step] + time_step_nums[step+window][0], 1)
+            knn_dists_t = knn_dists(X, indices, next_knn)
+
+            knn_dist[all_step_num[step]:all_step_num[step] + time_step_nums[step + window][0]] = knn_dists_t
+            knn_dist = knn_dist.astype('float32')
+
+            rows_t, cols_t, vals_t, _ = compute_membership_strengths(knn_indices_in, knn_dist, sigmas, rhos, return_dists=False)
+            idxs = vals_t > 0
+            rows = np.concatenate((rows, rows_t[idxs]), axis=0)
+            cols = np.concatenate((cols, cols_t[idxs]), axis=0)
+            vals = np.concatenate((vals, vals_t[idxs]), axis=0)
+    # backward
+    for window in range(1, persistent + 1, 1):
+        for step in range(time_steps-1, 0 + window, -1):
+            knn_indices_in = - np.ones((n_all, k))
+            knn_dist = np.zeros((n_all, k))
+
+            prev_knn = knn_indices[time_step_num[step-window]:time_step_num[step-window] + time_step_nums[step][0]]
+
+            knn_indices_in[all_step_num[step]: all_step_num[step] + time_step_nums[step][0]] = prev_knn
+            knn_indices_in = knn_indices_in.astype('int')
+
+            indices = np.arange(all_step_num[step], all_step_num[step] + time_step_nums[step][0], 1)
+            knn_dists_t = knn_dists(X, indices, prev_knn)
+
+            knn_dist[all_step_num[step]:all_step_num[step] + time_step_nums[step][0]] = knn_dists_t
             knn_dist = knn_dist.astype('float32')
 
             rows_t, cols_t, vals_t, _ = compute_membership_strengths(knn_indices_in, knn_dist, sigmas, rhos, return_dists=False)

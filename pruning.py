@@ -78,12 +78,12 @@ time_steps_num = list()
 for t in range(1, TIME_STEPS+1, 1):
     # load train data and border centers
     train_data = data_provider.train_representation(t).squeeze()
-    # selected_idxs = np.random.choice(np.arange(len(train_data)), size=len(train_data) // 5, replace=False)
-    # train_data = train_data[selected_idxs]
+    selected_idxs = np.random.choice(np.arange(len(train_data)), size=len(train_data) // 5, replace=False)
+    train_data = train_data[selected_idxs]
     while len(train_data) > 2000:
         knn_idxs, _ = knn(train_data, k=15)
-        selected_idxs = prune_points(knn_idxs, 10, threshold=0.6)
-        if len(selected_idxs) < 300:
+        selected_idxs = prune_points(knn_idxs, 10, threshold=0.65)
+        if len(selected_idxs) < 200:
             break
         remain_idxs = [i for i in range(len(knn_idxs)) if i not in selected_idxs]
         train_data = train_data[remain_idxs]
