@@ -1,5 +1,6 @@
 import torch
 import sys
+import os
 import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.data import WeightedRandomSampler
@@ -13,7 +14,7 @@ from singleVis.trainer import SingleVisTrainer
 from singleVis.data import DataProvider
 
 from singleVis.backend import fuzzy_complex, boundary_wise_complex, construct_step_edge_dataset, \
-    construct_temporal_edge_dataset, get_attention
+    construct_temporal_edge_dataset, get_attention, construct_temporal_edge_dataset2
 import singleVis.config as config
 import argparse
 parser = argparse.ArgumentParser(description='Process hyperparameters...')
@@ -25,6 +26,7 @@ args = parser.parse_args()
 CONTENT_PATH = args.content_path
 DATASET = args.dataset
 LEN = config.dataset_config[DATASET]["TRAINING_LEN"]
+LAMBDA = config.dataset_config[DATASET]["LAMBDA"]
 
 # define hyperparameters
 
@@ -41,7 +43,7 @@ sys.path.append(content_path)
 from Model.model import *
 net = resnet18()
 classes = ("airplane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck")
-selected_idxs = np.random.choice(np.arange(LEN), size=LEN//10, replace=False)
+selected_idxs = np.random.choice(np.arange(LEN), size=6000, replace=False)
 
 data_provider = DataProvider(content_path, net, 1, TIME_STEPS, 1, split=-1, device=DEVICE, verbose=1)
 # data_provider.initialize(LEN//10, l_bound=0.6)
@@ -53,7 +55,7 @@ min_dist = .1
 _a, _b = find_ab_params(1.0, min_dist)
 umap_loss_fn = UmapLoss(negative_sample_rate, _a, _b, repulsion_strength=1.0)
 recon_loss_fn = ReconstructionLoss(beta=1.0)
-criterion = SingleVisLoss(umap_loss_fn, recon_loss_fn, lambd=50.)
+criterion = SingleVisLoss(umap_loss_fn, recon_loss_fn, lambd=LAMBDA)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=.01, weight_decay=1e-5)
 # optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
@@ -77,11 +79,11 @@ time_steps_num = list()
 
 for t in range(1, TIME_STEPS+1, 1):
     # load train data and border centers
-    train_data = data_provider.train_representation(t)
+    train_data = data_provider.train_representation(t).squeeze()
+    selected_idxs = selected_idxs[:int(0.9*len(selected_idxs))]
     train_data = train_data[selected_idxs]
-    border_centers = data_provider.border_representation(t)
-    border_centers = border_centers[:len(train_data)//10]
-    # border_centers = border_centers
+    border_centers = data_provider.border_representation(t).squeeze()
+    border_centers = border_centers
 
     complex, sigmas_t1, rhos_t1, knn_idxs_t = fuzzy_complex(train_data, 15)
     bw_complex, sigmas_t2, rhos_t2, _ = boundary_wise_complex(train_data, border_centers, 15)
@@ -118,16 +120,23 @@ for t in range(1, TIME_STEPS+1, 1):
         rhos = np.concatenate((rhos, rhos_t), axis=0)
         feature_vectors = np.concatenate((feature_vectors, fitting_data), axis=0)
         attention = np.concatenate((attention, attention_t), axis=0)
-        # knn_indices = np.concatenate((knn_indices, knn_idxs_t+increase_idx), axis=0)
+        knn_indices = np.concatenate((knn_indices, knn_idxs_t+increase_idx), axis=0)
         time_steps_num.append((t_num, b_num))
 
 # boundary points...
 
-heads, tails, vals = construct_temporal_edge_dataset(X=feature_vectors,
+# heads, tails, vals = construct_temporal_edge_dataset(X=feature_vectors,
+#                                                      time_step_nums=time_steps_num,
+#                                                      persistent=TEMPORAL_PERSISTENT,
+#                                                      time_steps=TIME_STEPS,
+#                                                      # knn_indices=knn_indices,
+#                                                      sigmas=sigmas,
+#                                                      rhos=rhos)
+heads, tails, vals = construct_temporal_edge_dataset2(X=feature_vectors,
                                                      time_step_nums=time_steps_num,
                                                      persistent=TEMPORAL_PERSISTENT,
                                                      time_steps=TIME_STEPS,
-                                                     # knn_indices=knn_indices,
+                                                     knn_indices=knn_indices,
                                                      sigmas=sigmas,
                                                      rhos=rhos)
 # remove elements with very low probability
@@ -135,6 +144,8 @@ eliminate_idxs = (vals < 1e-2)
 heads = heads[eliminate_idxs]
 tails = tails[eliminate_idxs]
 vals = vals[eliminate_idxs]
+# increase weight of temporal edges
+vals = vals*80
 
 weight = np.concatenate((weight, vals), axis=0)
 probs_t = vals / (vals.max() + 1e-4)
@@ -148,7 +159,7 @@ dataset = DataHandler(edge_to, edge_from, feature_vectors, attention)
 # result = np.zeros(weight.shape[0], dtype=np.float64)
 n_samples = int(np.sum(NUMS * probs) // 1)
 
-sampler = WeightedRandomSampler(probs, n_samples, replacement=False)
+sampler = WeightedRandomSampler(probs, n_samples, replacement=True)
 edge_loader = DataLoader(dataset, batch_size=1000, sampler=sampler)
 
 trainer = SingleVisTrainer(model, criterion, optimizer, edge_loader=edge_loader, DEVICE=DEVICE)
@@ -169,7 +180,7 @@ for epoch in range(EPOCH_NUMS):
 time_end = time.time()
 time_spend = time_end - time_start
 print("Time spend: {:.2f}".format(time_spend))
-trainer.save(save_dir=data_provider.model_path, file_name="random_SV")
+trainer.save(save_dir=data_provider.model_path, file_name="b_SV")
 # trainer.load(file_path=os.path.join(data_provider.model_path,"random_SV.pth"))
 
 ########################################################################################################################
@@ -177,4 +188,4 @@ trainer.save(save_dir=data_provider.model_path, file_name="random_SV")
 ########################################################################################################################
 from singleVis.eval.evaluator import Evaluator
 evaluator = Evaluator(data_provider, trainer)
-evaluator.save_eval(n_neighbors=15, file_name="random_evaluation")
+evaluator.save_eval(n_neighbors=15, file_name="b_evaluation")
