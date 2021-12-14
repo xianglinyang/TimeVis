@@ -104,7 +104,7 @@ def evaluate_proj_temporal_perseverance_corr(alpha, delta_x):
         if np.isnan(correlation):
             correlation = 0.0
         corr[i] = correlation
-    return corr.mean()
+    return corr.mean(), corr.std()
 
 
 def evaluate_inv_distance(data, inv_data):

@@ -126,10 +126,10 @@ class Evaluator:
             alpha[t] = alpha_
             delta_x[t] = delta_x_
 
-        val_corr = evaluate_proj_temporal_perseverance_corr(alpha, delta_x)
+        val_corr, corr_std = evaluate_proj_temporal_perseverance_corr(alpha, delta_x)
         if self.verbose:
-            print("Temporal preserving (train): {:.3f}".format(val_corr))
-        return val_corr
+            print("Temporal preserving (train): {:.3f}\t std :{:.3f}".format(val_corr, corr_std))
+        return val_corr, corr_std
 
     def eval_temporal_test(self, n_neighbors):
         eval_num = (self.data_provider.e - self.data_provider.s) // self.data_provider.p
@@ -156,10 +156,10 @@ class Evaluator:
             alpha[t] = alpha_
             delta_x[t] = delta_x_
 
-        val_corr = evaluate_proj_temporal_perseverance_corr(alpha, delta_x)
+        val_corr, corr_std = evaluate_proj_temporal_perseverance_corr(alpha, delta_x)
         if self.verbose:
-            print("Temporal preserving (test): {:.3f}".format(val_corr))
-        return val_corr
+            print("Temporal preserving (test): {:.3f}\t std:{:.3f}".format(val_corr, corr_std))
+        return val_corr, corr_std
 
     #################################### helper functions #############################################
 
@@ -172,27 +172,32 @@ class Evaluator:
             f = open(save_dir, "r")
             evaluation = json.load(f)
             f.close()
-        evaluation[n_neighbors] = dict()
-        evaluation[n_neighbors]["nn_train"] = dict()
-        evaluation[n_neighbors]["nn_test"] = dict()
-        evaluation[n_neighbors]["b_train"] = dict()
-        evaluation[n_neighbors]["b_test"] = dict()
+        n_key = str(n_neighbors)
+        evaluation[n_key] = dict()
+        evaluation[n_key]["nn_train"] = dict()
+        evaluation[n_key]["nn_test"] = dict()
+        evaluation[n_key]["b_train"] = dict()
+        evaluation[n_key]["b_test"] = dict()
         evaluation["ppr_train"] = dict()
         evaluation["ppr_test"] = dict()
 
         for epoch in range(self.data_provider.s, self.data_provider.e+1, self.data_provider.p):
 
-            evaluation[n_neighbors]["nn_train"][epoch] = self.eval_nn_train(epoch, n_neighbors)
-            evaluation[n_neighbors]["nn_test"][epoch] = self.eval_nn_test(epoch, n_neighbors)
+            evaluation[n_key]["nn_train"][epoch] = self.eval_nn_train(epoch, n_neighbors)
+            evaluation[n_key]["nn_test"][epoch] = self.eval_nn_test(epoch, n_neighbors)
 
-            evaluation[n_neighbors]["b_train"][epoch] = self.eval_b_train(epoch, n_neighbors)
-            evaluation[n_neighbors]["b_test"][epoch] = self.eval_b_test(epoch, n_neighbors)
+            evaluation[n_key]["b_train"][epoch] = self.eval_b_train(epoch, n_neighbors)
+            evaluation[n_key]["b_test"][epoch] = self.eval_b_test(epoch, n_neighbors)
 
             evaluation["ppr_train"][epoch] = self.eval_inv_train(epoch)
             evaluation["ppr_test"][epoch] = self.eval_inv_test(epoch)
 
-        evaluation[n_neighbors]["temporal_train"] = self.eval_temporal_train(n_neighbors)
-        evaluation[n_neighbors]["temporal_test"] = self.eval_temporal_test(n_neighbors)
+        t_train_val, t_train_std = self.eval_temporal_train(n_neighbors)
+        evaluation[n_key]["temporal_train_mean"] = t_train_val
+        evaluation[n_key]["temporal_train_std"] = t_train_std
+        t_test_val, t_test_std = self.eval_temporal_test(n_neighbors)
+        evaluation[n_key]["temporal_test_mean"] = t_test_val
+        evaluation[n_key]["temporal_test_std"] = t_test_std
 
         with open(save_dir, "w") as f:
             json.dump(evaluation, f)
