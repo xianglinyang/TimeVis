@@ -1,6 +1,8 @@
 import os
 import gc
 import time
+
+from torch._C import device
 from singleVis.utils import *
 
 """
@@ -184,6 +186,19 @@ class DataProvider:
             print("no train data saved for Epoch {}".format(epoch))
             train_data = None
         return train_data.squeeze()
+    
+    def train_labels(self, epoch):
+        # load train data
+        training_data_loc = os.path.join(self.content_path, "Training_data", "training_dataset_label.pth")
+        index_file = os.path.join(self.model_path, "Epoch_{:d}".format(epoch), "index.json")
+        index = load_labelled_data_index(index_file)
+        try:
+            training_labels = torch.load(training_data_loc, device=self.DEVICE)
+            training_labels = training_labels[index]
+        except Exception as e:
+            print("no train labels saved for Epoch {}".format(epoch))
+            training_labels = None
+        return training_labels
 
     def test_representation(self, epoch):
         data_loc = os.path.join(self.model_path, "Epoch_{:d}".format(epoch), "test_data.npy")
@@ -197,6 +212,20 @@ class DataProvider:
             print("no test data saved for Epoch {}".format(epoch))
             test_data = None
         return test_data
+    
+    def test_labels(self, epoch):
+        # load train data
+        testing_data_loc = os.path.join(self.content_path, "Testing_data", "testing_dataset_label.pth")
+        try:
+            testing_labels = torch.load(testing_data_loc, device=self.DEVICE)
+            index_file = os.path.join(self.model_path, "Epoch_{:d}".format(epoch), "test_index.json")
+            if os.path.exists(index_file):
+                idxs = load_labelled_data_index(index_file)
+                testing_labels = testing_labels[idxs]
+        except Exception as e:
+            print("no train labels saved for Epoch {}".format(epoch))
+            testing_labels = None
+        return testing_labels
 
     def border_representation(self, epoch):
         border_centers_loc = os.path.join(self.model_path, "Epoch_{:d}".format(epoch),
