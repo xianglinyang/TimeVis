@@ -3,11 +3,19 @@ import os
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
+import torch
+from torch._C import device
 
 class visualizer:
-    def __init__(self, data_provider, sv_model):
+    def __init__(self, data_provider, sv_model, resolution, class_num, classes, cmap='tab10'):
         self.data_provider = data_provider
         self.model = sv_model
+        self.class_num = class_num
+        self.cmap = plt.get_cmap(cmap)
+        self.classes = classes
+        self.resolution= resolution
+
+        self.model.eval()
     
     def _init_plot(self):
         '''
@@ -53,7 +61,8 @@ class visualizer:
     def get_epoch_plot_measures(self, epoch):
         """get plot measure for visualization"""
         data = self.data_provider.train_representation(epoch)
-        embedded = self.model.encoder(data).cpu().numpy()
+        data = torch.from_numpy(data).to(device=self.data_provider.DEVICE, dtype=torch.float)
+        embedded = self.model.encoder(data).cpu().detach().numpy()
 
         ebd_min = np.min(embedded, axis=0)
         ebd_max = np.max(embedded, axis=0)
@@ -89,7 +98,8 @@ class visualizer:
         grid = np.swapaxes(grid.reshape(grid.shape[0], -1), 0, 1)
 
         # map gridmpoint to images
-        grid_samples = self.model.decoder(grid).cpu().numpy()
+        grid = torch.from_numpy(grid).to(device=self.data_provider.DEVICE, dtype=torch.float)
+        grid_samples = self.model.decoder(grid).cpu().detach().numpy()
 
         mesh_preds = self.data_provider.get_pred(epoch, grid_samples)
         mesh_preds = mesh_preds + 1e-8
@@ -139,7 +149,8 @@ class visualizer:
         pred = self.data_provider.get_pred(epoch, train_data)
         pred = pred.argmax(axis=1)
 
-        embedding = self.model.encoder(train_data).cpu().numpy()
+        train_data = torch.from_numpy(train_data).to(device=self.data_provider.DEVICE, dtype=torch.float)
+        embedding = self.model.encoder(train_data).cpu().detach().numpy()
         for c in range(self.class_num):
             data = embedding[np.logical_and(train_labels == c, train_labels == pred)]
             self.sample_plots[c].set_data(data.transpose())
@@ -152,8 +163,8 @@ class visualizer:
             data = embedding[np.logical_and(pred == c, train_labels != pred)]
             self.sample_plots[2*self.class_num + c].set_data(data.transpose())
 
-        if os.name == 'posix':
-            self.fig.canvas.manager.window.raise_()
+        # if os.name == 'posix':
+        #     self.fig.canvas.manager.window.raise_()
 
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()

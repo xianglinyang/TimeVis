@@ -62,9 +62,10 @@ trainer.load(file_path=os.path.join(data_provider.model_path,"temporal_SV.pth"))
 ########################################################################################################################
 # visualization results
 ########################################################################################################################
-vis = visualizer(data_provider, trainer.model)
+classes = list(range(10))
+vis = visualizer(data_provider, trainer.model, 200, 10, classes)
 save_dir = "./result"
 if not os.path.exists(save_dir):
     os.mkdir(save_dir)
-for i in range(TIME_STEPS):
+for i in range(1, TIME_STEPS+1, 1):
     vis.savefig(i, path=os.path.join(save_dir, "{}_{}.png".format(DATASET, i)))

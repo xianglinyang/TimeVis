@@ -193,12 +193,12 @@ class DataProvider:
         index_file = os.path.join(self.model_path, "Epoch_{:d}".format(epoch), "index.json")
         index = load_labelled_data_index(index_file)
         try:
-            training_labels = torch.load(training_data_loc, device=self.DEVICE)
+            training_labels = torch.load(training_data_loc, map_location=self.DEVICE)
             training_labels = training_labels[index]
         except Exception as e:
             print("no train labels saved for Epoch {}".format(epoch))
             training_labels = None
-        return training_labels
+        return training_labels.cpu().numpy()
 
     def test_representation(self, epoch):
         data_loc = os.path.join(self.model_path, "Epoch_{:d}".format(epoch), "test_data.npy")
@@ -225,7 +225,7 @@ class DataProvider:
         except Exception as e:
             print("no train labels saved for Epoch {}".format(epoch))
             testing_labels = None
-        return testing_labels
+        return testing_labels.cpu().numpy()
 
     def border_representation(self, epoch):
         border_centers_loc = os.path.join(self.model_path, "Epoch_{:d}".format(epoch),
@@ -271,4 +271,4 @@ class DataProvider:
         data = torch.from_numpy(data)
         data = data.to(self.DEVICE)
         pred = batch_run(prediction_func, data)
-        return pred
+        return pred.squeeze()
