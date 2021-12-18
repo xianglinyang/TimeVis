@@ -1,6 +1,7 @@
 import os.path
 import time
 
+from tqdm import tqdm
 import torch
 
 """
@@ -34,7 +35,11 @@ class SingleVisTrainer:
         all_loss = []
         umap_losses = []
         recon_losses = []
-        for data in self.edge_loader:
+
+        t = tqdm(self.edge_loader, leave=False, total=len(self.edge_loader))
+
+        # for data in self.edge_loader:
+        for data in t:
             edge_to, edge_from, a_to, a_from = data
 
             edge_to = edge_to.to(device=self.DEVICE, dtype=torch.float32)
