@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import WeightedRandomSampler
 from umap.umap_ import find_ab_params
 import time
+import json
 
 from singleVis.SingleVisualizationModel import SingleVisualizationModel
 from singleVis.losses import SingleVisLoss, UmapLoss, ReconstructionLoss
@@ -20,7 +21,7 @@ import singleVis.config as config
 import argparse
 parser = argparse.ArgumentParser(description='Process hyperparameters...')
 parser.add_argument('--content_path', type=str)
-parser.add_argument('-d','--dataset', choices=['cifar10', 'mnist', 'fmnist'])
+parser.add_argument('-d','--dataset', choices=['cifar10', 'mnist', 'fmnist','online'])
 
 args = parser.parse_args()
 
@@ -32,11 +33,11 @@ LAMBDA = config.dataset_config[DATASET]["LAMBDA"]
 # define hyperparameters
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-EPOCH_NUMS = config.training_config["EPOCH_NUM"]
-TIME_STEPS = config.training_config["TIME_STEPS"]
-TEMPORAL_PERSISTENT = config.training_config["TEMPORAL_PERSISTENT"]
-NUMS = config.training_config["NUMS"]    # how many epoch should we go through for one pass
-PATIENT = config.training_config["PATIENT"]
+EPOCH_NUMS = config.dataset_config[DATASET]["training_config"]["EPOCH_NUM"]
+TIME_STEPS = config.dataset_config[DATASET]["training_config"]["TIME_STEPS"]
+TEMPORAL_PERSISTENT = config.dataset_config[DATASET]["training_config"]["TEMPORAL_PERSISTENT"]
+NUMS = config.dataset_config[DATASET]["training_config"]["NUMS"]    # how many epoch should we go through for one pass
+PATIENT = config.dataset_config[DATASET]["training_config"]["PATIENT"]
 
 content_path = CONTENT_PATH
 sys.path.append(content_path)
@@ -51,13 +52,13 @@ model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256)
 negative_sample_rate = 5
 min_dist = .1
 _a, _b = find_ab_params(1.0, min_dist)
-umap_loss_fn = UmapLoss(negative_sample_rate, _a, _b, repulsion_strength=1.0)
+umap_loss_fn = UmapLoss(negative_sample_rate, DEVICE, _a, _b, repulsion_strength=1.0)
 recon_loss_fn = ReconstructionLoss(beta=1.0)
 criterion = SingleVisLoss(umap_loss_fn, recon_loss_fn, lambd=LAMBDA)
 optimizer = torch.optim.Adam(model.parameters(), lr=.01, weight_decay=1e-5)
 
 trainer = SingleVisTrainer(model, criterion, optimizer, edge_loader=None, DEVICE=DEVICE)
-trainer.load(file_path=os.path.join(data_provider.model_path,"temporal_SV.pth"))
+trainer.load(file_path=os.path.join(data_provider.model_path,"SV.pth"))
 
 ########################################################################################################################
 # visualization results
@@ -68,4 +69,18 @@ save_dir = "./result"
 if not os.path.exists(save_dir):
     os.mkdir(save_dir)
 for i in range(1, TIME_STEPS+1, 1):
-    vis.savefig(i, path=os.path.join(save_dir, "{}_{}.png".format(DATASET, i)))
+    test_data = data_provider.test_representation(i)
+    test_labels = data_provider.test_labels(i)
+    with open("/home/xianglin/projects/DVI_data/online_learning/target_list.json", "r") as f:
+        index = json.load(f)
+    test_data = test_data[index]
+    test_labels = test_labels[index]
+    preds = data_provider.get_pred(i, test_data)
+    preds = np.argmax(preds, axis=1)
+    vis.savefig_cus(i,test_data, preds, test_labels, path=os.path.join(save_dir, "motivated_{}_{}.png".format(DATASET, i)))
+########################################################################################################################
+# evaluate
+########################################################################################################################
+# from singleVis.eval.evaluator import Evaluator
+# evaluator = Evaluator(data_provider, trainer)
+# evaluator.save_eval(n_neighbors=15, file_name="evaluation")
