@@ -2,12 +2,13 @@ import os
 import gc
 import time
 
-from torch._C import device
 from singleVis.utils import *
 
 """
 DataContainder module
 1. prepare data
+2. estimate boundary
+3. provide data
 """
 
 class DataProvider:
@@ -21,6 +22,8 @@ class DataProvider:
         self.DEVICE = device
         self.verbose = verbose
         self.model_path = os.path.join(self.content_path, "Model")
+        if verbose:
+            print("Finish initialization...")
 
     @property
     def train_num(self):
@@ -132,15 +135,7 @@ class DataProvider:
             preds = np.argmax(confs, axis=1).squeeze()
             # TODO how to choose the number of boundary points?
             num_adv_eg = num
-            border_points, curr_samples, tot_num = get_border_points(model=self.model,
-                                                                     input_x=training_data,
-                                                                     confs=confs,
-                                                                     predictions=preds,
-                                                                     device=self.DEVICE,
-                                                                     l_bound=l_bound,
-                                                                     num_adv_eg=num_adv_eg,
-                                                                     lambd=0.05,
-                                                                     verbose=0)
+            border_points, _, _ = get_border_points(model=self.model, input_x=training_data, confs=confs, predictions=preds, device=self.DEVICE, l_bound=l_bound, num_adv_eg=num_adv_eg, ambd=0.05, verbose=0)
             t1 = time.time()
             time_borders_gen.append(round(t1 - t0, 4))
 
@@ -217,7 +212,7 @@ class DataProvider:
         # load train data
         testing_data_loc = os.path.join(self.content_path, "Testing_data", "testing_dataset_label.pth")
         try:
-            testing_labels = torch.load(testing_data_loc, device=self.DEVICE)
+            testing_labels = torch.load(testing_data_loc).to(device=self.DEVICE)
             index_file = os.path.join(self.model_path, "Epoch_{:d}".format(epoch), "test_index.json")
             if os.path.exists(index_file):
                 idxs = load_labelled_data_index(index_file)
