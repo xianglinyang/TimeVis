@@ -133,14 +133,13 @@ def construct_step_edge_dataset(vr_complex, bw_complex, n_epochs):
         connect border points and train data(both direction)
     :param vr_complex: Vietoris-Rips complex
     :param bw_complex: boundary-augmented complex
-    :param batch_size: edge dataset batch size
+    :param n_epochs: the number of epoch that we iterate each round
     :return: edge dataset
     """
     # get data from graph
     _, vr_head, vr_tail, vr_weight, _ = get_graph_elements(vr_complex, n_epochs)
     # get data from graph
     _, bw_head, bw_tail, bw_weight, _ = get_graph_elements(bw_complex, n_epochs)
-    # bw_weight = bw_weight*10
 
     head = np.concatenate((vr_head, bw_head), axis=0)
     tail = np.concatenate((vr_tail, bw_tail), axis=0)
@@ -156,19 +155,6 @@ def knn_dists(X, indices, knn_indices):
     return knn_dists
 
 
-# @numba.jit()
-# def fast_knn_dists(X, knn_indices):
-#     knn_dists = np.zeros(knn_indices.shape)
-#     for i in range(len(X)):
-#         for nn in knn_indices[i]:
-#             if nn == -1:
-#                 continue
-#             x1 = X[i]
-#             x2 = X[nn]
-#             # dist = np.sqrt(np.sum(np.power(x1-x2, 2)))
-#             dist = np.linalg.norm(x1-x2)
-#             knn_dists[i, nn] = dist
-#     return knn_dists
 def convert_distance_to_probability(distances, a=1.0, b=1.0):
     """convert distance to student-t distribution probability in low-dimensional space"""
     return 1.0 / (1.0 + a * torch.pow(distances, 2 * b))
@@ -210,9 +196,9 @@ def compute_cross_entropy(
     return attraction_term, repellent_term, CE
 
 
-def construct_temporal_edge_dataset(X, time_step_nums, persistent, time_steps, sigmas, rhos, k=15):
+def construct_temporal_edge_dataset_distance(X, time_step_nums, persistent, time_steps, sigmas, rhos, k=15):
     """
-
+    construct temporal edges across time based on distance
     :param time_step_nums: [(train_num, b_num)]
     :param persistent: the length of sliding window
     :param time_steps: the number of time steps we are looking at
@@ -244,9 +230,6 @@ def construct_temporal_edge_dataset(X, time_step_nums, persistent, time_steps, s
             knn_indices_in[time_step_num[step]: time_step_num[step] + time_step_nums[step][0]] = knn_indices
             knn_indices_in = knn_indices_in.astype('int')
 
-            # indices = np.arange(time_step_num[step], time_step_num[step] + time_step_nums[step][0], 1)
-            # knn_dists_t = knn_dists(X, indices, knn_indices)
-
             knn_dist[time_step_num[step]:time_step_num[step] + time_step_nums[step][0]] = knn_dists_t
             knn_dist = knn_dist.astype('float32')
 
@@ -272,9 +255,6 @@ def construct_temporal_edge_dataset(X, time_step_nums, persistent, time_steps, s
             knn_indices_in[time_step_num[step]: time_step_num[step] + time_step_nums[step][0]] = knn_indices
             knn_indices_in = knn_indices_in.astype('int')
 
-            # indices = np.arange(time_step_num[step], time_step_num[step] + time_step_nums[step][0], 1)
-            # knn_dists_t = knn_dists(X, indices, knn_indices)
-
             knn_dist[time_step_num[step]:time_step_num[step] + time_step_nums[step][0]] = knn_dists_t
             knn_dist = knn_dist.astype('float32')
 
@@ -287,7 +267,7 @@ def construct_temporal_edge_dataset(X, time_step_nums, persistent, time_steps, s
     return rows, cols, vals
 
 
-def construct_temporal_edge_dataset2(X, time_step_nums, persistent, time_steps, knn_indices, sigmas, rhos, k=15):
+def construct_temporal_edge_dataset(X, time_step_nums, persistent, time_steps, knn_indices, sigmas, rhos, k=15):
     """
     construct temporal edges based on same data
     link data to its next epoch
@@ -316,10 +296,6 @@ def construct_temporal_edge_dataset2(X, time_step_nums, persistent, time_steps, 
         for step in range(0, time_steps - window, 1):
             knn_indices_in = - np.ones((n_all, k))
             knn_dist = np.zeros((n_all, k))
-
-            # curr_data = X[time_step_num[step]:time_step_num[step] + time_step_nums[step][0]]
-            # next_data = X[time_step_num[step+window]:time_step_num[step+window] + time_step_nums[step + window][0]]
-            # increase_idx = time_step_num[step+window]
 
             next_knn = knn_indices[time_step_num[step+window]:time_step_num[step+window] + time_step_nums[step + window][0]]
 
@@ -413,7 +389,6 @@ def spatio_temporal_simplicial_set(
                 set_op_mix_ratio * (result + transpose - prod_matrix)
                 + (1.0 - set_op_mix_ratio) * prod_matrix
         )
-
     result.eliminate_zeros()
     return result
 
@@ -464,27 +439,6 @@ def find_neighbor_preserving_rate(prev_data, train_data, n_neighbors):
     return temporal_pres
 
 
-# def construct_edge_dataset():
-#     """forward pass and backward pass"""
-#     rows = np.zeros(1, dtype=np.int32)
-#     cols = np.zeros(1, dtype=np.int32)
-#     vals = np.zeros(1, dtype=np.float32)
-#     for t in range(time_step):
-#         vr_complex = fuzzy_complex(train_data, n_neighbors)
-#         bw_complex = boundary_wise_complex(train_data, border_centers, n_neighbors)
-#         rows_t, cols_t, vals_t = construct_step_edge_dataset(vr_complex, bw_complex)
-#
-#     result = scipy.sparse.coo_matrix(
-#         (vals, (rows, cols)), shape=(X.shape[0], X.shape[0])
-#     )
-#
-#     rows, cols, vals, dists = compute_membership_strengths(
-#         knn_indices, knn_dists, sigmas, rhos
-#     )
-#     rows, cols, vals, dists = compute_membership_strengths(
-#         knn_indices, knn_dists, sigmas, rhos
-#     )
-
 def get_attention(model, data, device, temperature=.01, verbose=1):
     t0 = time.time()
     grad_list = []
@@ -515,10 +469,10 @@ def get_attention(model, data, device, temperature=.01, verbose=1):
     t2 = time.time()
     if verbose:
         print("Gradients calculation: {:.2f} seconds\tsoftmax with temperature: {:.2f} seconds".format(round(t1-t0), round(t2-t1)))
-
     return grad
 
 def prune_points(knn_indices, prune_num, threshold):
+    '''prune similar points'''
     prune_dict = dict()
     selected_pruned = list()
     for i in range(len(knn_indices)):
@@ -534,8 +488,3 @@ def prune_points(knn_indices, prune_num, threshold):
                 prune_dict[j] = True
                 selected_pruned.append(int(j))
     return selected_pruned
-
-
-
-
-
