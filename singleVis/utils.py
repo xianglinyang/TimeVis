@@ -7,48 +7,6 @@ import time
 from pynndescent import NNDescent
 from sklearn.neighbors import KDTree
 
-
-def convert_distance_to_probability(distances, a=1.0, b=1.0):
-    return 1.0 / (1.0 + a * torch.pow(distances, 2 * b))
-
-
-def compute_cross_entropy(
-        probabilities_graph, probabilities_distance, EPS=1e-4, repulsion_strength=1.0
-):
-    """
-    Compute cross entropy between low and high probability
-    Parameters
-    ----------
-    probabilities_graph : torch.Tensor
-        high dimensional probabilities
-    probabilities_distance : torch.Tensor
-        low dimensional probabilities
-    # probabilities : array
-    #     edge weights + zeros
-    EPS : float, optional
-        offset to to ensure log is taken of a positive number, by default 1e-4
-    repulsion_strength : float, optional
-        strength of repulsion between negative samples, by default 1.0
-    Returns
-    -------
-    attraction_term: torch.float
-        attraction term for cross entropy loss
-    repellent_term: torch.float
-        repellent term for cross entropy loss
-    cross_entropy: torch.float
-        cross entropy umap loss
-    """
-    attraction_term = - probabilities_graph * torch.log(torch.clamp(probabilities_distance, min=EPS, max=1.0))
-    repellent_term = (
-            -(1.0 - probabilities_graph)
-            * torch.log(torch.clamp(1.0 - probabilities_distance, min=EPS, max=1.0))
-            * repulsion_strength
-    )
-
-    # balance the expected losses between attraction and repel
-    CE = attraction_term + repellent_term
-    return attraction_term, repellent_term, CE
-
 def mixup_bi(model, image1, image2, label, target_cls, device, diff=0.1, max_iter=8, l_bound=0.8):
     '''Get BPs based on mixup method, fast
     :param model: subject model
@@ -81,15 +39,16 @@ def mixup_bi(model, image1, image2, label, target_cls, device, diff=0.1, max_ite
         # take middle point
         lamb = (upper + lower) / 2
         image_mix = lamb * image1 + (1 - lamb) * image2
-        # clip image
 
         pred_new, normalized = f(image_mix)
 
         # Bisection method
-        if normalized[0, label] - normalized[0, target_cls] > 0:  # shall decrease weight on image 1
+        if normalized[0, label] - normalized[0, target_cls] > 0:  
+            # shall decrease weight on image 1
             upper = lamb
 
-        else:  # shall increase weight on image 1
+        else:  
+            # shall increase weight on image 1
             lower = lamb
         # Stop when ...
         # reach the decision boundary, and
@@ -213,16 +172,7 @@ def batch_run(model, data, batch_size=200):
 def load_labelled_data_index(filename):
     with open(filename, 'r') as f:
         index = json.load(f)
-
     return index
-
-
-def softmax_model(model, split): # softmax layer
-    return torch.nn.Sequential(*(list(model.children())[split:]))
-
-
-def gap_model(model, split): # GAP layer
-    return torch.nn.Sequential(*(list(model.children())[:split]))
 
 
 def jaccard_similarity(l1, l2):
@@ -251,9 +201,12 @@ def knn(data, k):
     return knn_indices, knn_dists
 
 
-def hausdorff_dist(X,subset_idxs, n_neighbors, metric="euclidean", verbose=1):
+def hausdorff_dist(X, subset_idxs, n_neighbors, metric="euclidean", verbose=1):
+    '''
+    Calculate the hausdorff distance of X and its subset
+    '''
     t_s = time.time()
-    tree = KDTree(X[subset_idxs])
+    tree = KDTree(X[subset_idxs], metric=metric)
     knn_dists, _ = tree.query(X, k=n_neighbors)
     hausdorff_dist = knn_dists.max()
     t_e = time.time()
