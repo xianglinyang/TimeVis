@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from singleVis.utils import convert_distance_to_probability, compute_cross_entropy
+from singleVis.backend import convert_distance_to_probability, compute_cross_entropy
 
 """Losses modules for preserving four propertes"""
 # https://github.com/ynjnpa/VocGAN/blob/5339ee1d46b8337205bec5e921897de30a9211a1/utils/stft_loss.py for losses module

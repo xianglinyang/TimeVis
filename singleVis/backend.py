@@ -4,16 +4,15 @@ backend APIs for Single Visualization model trainer
 # import modules
 import torch
 import time
+import numpy as np
+import scipy.sparse
 from scipy.special import softmax
-from umap.umap_ import fuzzy_simplicial_set
-import numba
 
+from umap.umap_ import fuzzy_simplicial_set, compute_membership_strengths
 from pynndescent import NNDescent
 from sklearn.utils import check_random_state
 from sklearn.neighbors import KDTree
-import numpy as np
-import scipy.sparse
-from umap.umap_ import compute_membership_strengths
+
 from singleVis.utils import jaccard_similarity
 
 
@@ -170,6 +169,45 @@ def knn_dists(X, indices, knn_indices):
 #             dist = np.linalg.norm(x1-x2)
 #             knn_dists[i, nn] = dist
 #     return knn_dists
+def convert_distance_to_probability(distances, a=1.0, b=1.0):
+    """convert distance to student-t distribution probability in low-dimensional space"""
+    return 1.0 / (1.0 + a * torch.pow(distances, 2 * b))
+
+
+def compute_cross_entropy(
+        probabilities_graph, probabilities_distance, EPS=1e-4, repulsion_strength=1.0
+):
+    """
+    Compute cross entropy between low and high probability
+    Parameters
+    ----------
+    probabilities_graph : torch.Tensor
+        high dimensional probabilities
+    probabilities_distance : torch.Tensor
+        low dimensional probabilities
+    EPS : float, optional
+        offset to to ensure log is taken of a positive number, by default 1e-4
+    repulsion_strength : float, optional
+        strength of repulsion between negative samples, by default 1.0
+    Returns
+    -------
+    attraction_term: torch.float
+        attraction term for cross entropy loss
+    repellent_term: torch.float
+        repellent term for cross entropy loss
+    cross_entropy: torch.float
+        cross entropy umap loss
+    """
+    attraction_term = - probabilities_graph * torch.log(torch.clamp(probabilities_distance, min=EPS, max=1.0))
+    repellent_term = (
+            -(1.0 - probabilities_graph)
+            * torch.log(torch.clamp(1.0 - probabilities_distance, min=EPS, max=1.0))
+            * repulsion_strength
+    )
+
+    # balance the expected losses between attraction and repel
+    CE = attraction_term + repellent_term
+    return attraction_term, repellent_term, CE
 
 
 def construct_temporal_edge_dataset(X, time_step_nums, persistent, time_steps, sigmas, rhos, k=15):
