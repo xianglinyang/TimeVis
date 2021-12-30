@@ -2,24 +2,27 @@ import torch
 import sys
 import os
 import numpy as np
+import time
+import argparse
+
 from torch.utils.data import DataLoader
 from torch.utils.data import WeightedRandomSampler
 from umap.umap_ import find_ab_params
-import time
 
+from singleVis.custom_weighted_random_sampler import CustomWeightedRandomSampler
 from singleVis.SingleVisualizationModel import SingleVisualizationModel
 from singleVis.losses import SingleVisLoss, UmapLoss, ReconstructionLoss
 from singleVis.edge_dataset import DataHandler
 from singleVis.trainer import SingleVisTrainer
 from singleVis.data import DataProvider
-
 from singleVis.backend import fuzzy_complex, boundary_wise_complex, construct_step_edge_dataset, \
-    construct_temporal_edge_dataset, get_attention, construct_temporal_edge_dataset2
+    construct_temporal_edge_dataset, get_attention
 import singleVis.config as config
-import argparse
+
+
 parser = argparse.ArgumentParser(description='Process hyperparameters...')
 parser.add_argument('--content_path', type=str)
-parser.add_argument('-d','--dataset', choices=['cifar10', 'mnist', 'fmnist'])
+parser.add_argument('-d','--dataset', choices=['online','cifar10', 'mnist', 'fmnist'])
 
 args = parser.parse_args()
 
@@ -30,12 +33,12 @@ LAMBDA = config.dataset_config[DATASET]["LAMBDA"]
 
 # define hyperparameters
 
-DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-EPOCH_NUMS = config.training_config["EPOCH_NUM"]
-TIME_STEPS = config.training_config["TIME_STEPS"]
-TEMPORAL_PERSISTENT = config.training_config["TEMPORAL_PERSISTENT"]
-NUMS = config.training_config["NUMS"]    # how many epoch should we go through for one pass
-PATIENT = config.training_config["PATIENT"]
+DEVICE = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+EPOCH_NUMS = config.dataset_config[DATASET]["training_config"]["EPOCH_NUM"]
+TIME_STEPS = config.dataset_config[DATASET]["training_config"]["TIME_STEPS"]
+TEMPORAL_PERSISTENT = config.dataset_config[DATASET]["training_config"]["TEMPORAL_PERSISTENT"]
+NUMS = config.dataset_config[DATASET]["training_config"]["NUMS"]    # how many epoch should we go through for one pass
+PATIENT = config.dataset_config[DATASET]["training_config"]["PATIENT"]
 
 content_path = CONTENT_PATH
 sys.path.append(content_path)
@@ -43,7 +46,7 @@ sys.path.append(content_path)
 from Model.model import *
 net = resnet18()
 classes = ("airplane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck")
-selected_idxs = np.random.choice(np.arange(LEN), size=6000, replace=False)
+selected_idxs = np.random.choice(np.arange(LEN), size=3000, replace=False)
 
 data_provider = DataProvider(content_path, net, 1, TIME_STEPS, 1, split=-1, device=DEVICE, verbose=1)
 # data_provider.initialize(LEN//10, l_bound=0.6)
@@ -53,7 +56,7 @@ model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256)
 negative_sample_rate = 5
 min_dist = .1
 _a, _b = find_ab_params(1.0, min_dist)
-umap_loss_fn = UmapLoss(negative_sample_rate, _a, _b, repulsion_strength=1.0)
+umap_loss_fn = UmapLoss(negative_sample_rate, DEVICE, _a, _b, repulsion_strength=1.0)
 recon_loss_fn = ReconstructionLoss(beta=1.0)
 criterion = SingleVisLoss(umap_loss_fn, recon_loss_fn, lambd=LAMBDA)
 
@@ -80,8 +83,8 @@ time_steps_num = list()
 for t in range(1, TIME_STEPS+1, 1):
     # load train data and border centers
     train_data = data_provider.train_representation(t).squeeze()
-    selected_idxs = selected_idxs[:int(0.9*len(selected_idxs))]
-    train_data = train_data[selected_idxs]
+    # selected_idxs = selected_idxs[:int(0.9*len(selected_idxs))]
+    # train_data = train_data[selected_idxs]
     border_centers = data_provider.border_representation(t).squeeze()
     border_centers = border_centers
 
@@ -124,15 +127,7 @@ for t in range(1, TIME_STEPS+1, 1):
         time_steps_num.append((t_num, b_num))
 
 # boundary points...
-
-# heads, tails, vals = construct_temporal_edge_dataset(X=feature_vectors,
-#                                                      time_step_nums=time_steps_num,
-#                                                      persistent=TEMPORAL_PERSISTENT,
-#                                                      time_steps=TIME_STEPS,
-#                                                      # knn_indices=knn_indices,
-#                                                      sigmas=sigmas,
-#                                                      rhos=rhos)
-heads, tails, vals = construct_temporal_edge_dataset2(X=feature_vectors,
+heads, tails, vals = construct_temporal_edge_dataset(X=feature_vectors,
                                                      time_step_nums=time_steps_num,
                                                      persistent=TEMPORAL_PERSISTENT,
                                                      time_steps=TIME_STEPS,
@@ -180,12 +175,13 @@ for epoch in range(EPOCH_NUMS):
 time_end = time.time()
 time_spend = time_end - time_start
 print("Time spend: {:.2f}".format(time_spend))
-trainer.save(save_dir=data_provider.model_path, file_name="b_SV")
-# trainer.load(file_path=os.path.join(data_provider.model_path,"random_SV.pth"))
+trainer.save(save_dir=data_provider.model_path, file_name="SV")
+trainer.load(file_path=os.path.join(data_provider.model_path,"SV.pth"))
+
 
 ########################################################################################################################
 # evaluate
 ########################################################################################################################
 from singleVis.eval.evaluator import Evaluator
 evaluator = Evaluator(data_provider, trainer)
-evaluator.save_eval(n_neighbors=15, file_name="b_evaluation")
+evaluator.save_eval(n_neighbors=15, file_name="evaluation")
