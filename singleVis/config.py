@@ -39,7 +39,7 @@ dataset_config = {
         "TRAINING_LEN": 60000,
         "TESTING_LEN": 10000,
         "LAMBDA":1.,
-        "DOWNSAMPLING_RATE": .2,
+        "DOWNSAMPLING_RATE": .1,
         "L_BOUND":0.4,
         "training_config":{
             "EPOCH_NUM": 6,
