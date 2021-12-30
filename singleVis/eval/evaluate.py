@@ -233,3 +233,7 @@ def evaluate_keep_B(low_B, grid_view, decision_view, threshold=0.8):
 
     # return the ratio of boundary points that still lie on boundary after dimension reduction
     return np.sum(c)/len(c)
+
+def evaluate_temporal_epoch_corr(dists, embedding_dists):
+    corr, _ = pearsonr(dists, embedding_dists)
+    return corr

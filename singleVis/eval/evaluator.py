@@ -1,5 +1,6 @@
 import os
 import json
+import gc
 
 
 from singleVis.eval.evaluate import *
@@ -160,6 +161,50 @@ class Evaluator:
         if self.verbose:
             print("Temporal preserving (test): {:.3f}\t std:{:.3f}".format(val_corr, corr_std))
         return val_corr, corr_std
+    
+    def eval_temporal_corr_train(self):
+        eval = dict()
+
+        for n_epoch in range(self.data_provider.s+self.data_provider.p, self.data_provider.e+1, self.data_provider.p):
+            prev_data = self.data_provider.train_representation(n_epoch - self.data_provider.p)
+            prev_embedding = self.trainer.model.encoder(
+                torch.from_numpy(prev_data).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
+
+            curr_data = self.data_provider.train_representation(n_epoch)
+            curr_embedding = self.trainer.model.encoder(
+                torch.from_numpy(curr_data).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
+
+            dists = np.linalg.norm(prev_data - curr_data, axis=1)
+            embedding_dists = np.linalg.norm(prev_embedding - curr_embedding, axis=1)
+            corr = evaluate_temporal_epoch_corr(dists, embedding_dists)
+            eval[n_epoch//self.data_provider.p] = corr
+            if self.verbose:
+                print("{:d} (train) corr value: {:.3f}".format(n_epoch//self.data_provider.p, corr))
+
+        return eval
+        
+    def eval_temporal_corr_test(self):
+        """evalute testing temporal preserving property"""
+        eval = dict()
+
+        for n_epoch in range(self.data_provider.s+self.data_provider.p, self.data_provider.e+1, self.data_provider.p):
+            prev_data = self.data_provider.test_representation(n_epoch-self.data_provider.p)
+            prev_embedding = self.trainer.model.encoder(
+                torch.from_numpy(prev_data).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
+
+            curr_data = self.data_provider.test_representation(n_epoch)
+            curr_embedding = self.trainer.model.encoder(
+                torch.from_numpy(curr_data).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
+
+            dists = np.linalg.norm(prev_data-curr_data, axis=1)
+            embedding_dists = np.linalg.norm(prev_embedding-curr_embedding, axis=1)
+
+            corr = evaluate_temporal_epoch_corr(dists, embedding_dists)
+            eval[n_epoch//self.data_provider.p] = corr
+            if self.verbose:
+                print("{:d} (test) corr value: {:.3f}".format(n_epoch//self.data_provider.p, corr))
+
+        return eval
 
     #################################### helper functions #############################################
 
@@ -198,6 +243,10 @@ class Evaluator:
         t_test_val, t_test_std = self.eval_temporal_test(n_neighbors)
         evaluation[n_key]["temporal_test_mean"] = t_test_val
         evaluation[n_key]["temporal_test_std"] = t_test_std
+        corr_train = self.eval_temporal_corr_train()
+        evaluation["temporal_corr_train"] = corr_train
+        corr_test = self.eval_temporal_corr_test()
+        evaluation["temporal_corr_test"] = corr_test
 
         with open(save_dir, "w") as f:
             json.dump(evaluation, f)
