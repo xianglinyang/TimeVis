@@ -17,10 +17,11 @@ Trainer should contains
 
 
 class SingleVisTrainer:
-    def __init__(self, model, criterion, optimizer, edge_loader, DEVICE):
+    def __init__(self, model, criterion, optimizer, lr_scheduler, edge_loader, DEVICE):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
+        self.lr_scheduler = lr_scheduler
         self.DEVICE = DEVICE
         self.edge_loader = edge_loader
         self._loss = 100.0
@@ -70,6 +71,7 @@ class SingleVisTrainer:
             print("====================\nepoch:{}\n===================".format(epoch))
             prev_loss = self.loss
             loss = self.train_step()
+            self.lr_scheduler.step()
             # early stop, check whether converge or not
             if prev_loss - loss < 1E-2:
                 if patient == 0:
