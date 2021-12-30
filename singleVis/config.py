@@ -1,3 +1,7 @@
+"""
+Training config for different datasets.
+"""
+
 dataset_config = {
     "cifar10": {
         "TRAINING_LEN": 50000,
@@ -8,6 +12,21 @@ dataset_config = {
         "training_config":{
             "EPOCH_NUM": 6,
             "TIME_STEPS": 11,
+            "TEMPORAL_PERSISTENT": 1,
+            "NUMS": 5,   # the number of epochs to go through in one go
+            "PATIENT": 3,    # early stopping patient
+        }
+        
+    },
+    "online": {
+        "TRAINING_LEN": 50000,
+        "TESTING_LEN": 10000,
+        "LAMBDA":10.,
+        "DOWNSAMPLING_RATE": .1,
+        "L_BOUND":0.6,
+        "training_config":{
+            "EPOCH_NUM": 6,
+            "TIME_STEPS": 5,
             "TEMPORAL_PERSISTENT": 1,
             "NUMS": 5,   # the number of epochs to go through in one go
             "PATIENT": 3,    # early stopping patient
@@ -36,7 +55,7 @@ dataset_config = {
         "L_BOUND":0.5,
         "training_config":{
             "EPOCH_NUM": 6,
-            "TIME_STEPS": 11,
+            "TIME_STEPS": 10,
             "TEMPORAL_PERSISTENT": 1,
             "NUMS": 5,   # the number of epochs to go through in one go
             "PATIENT": 3,    # early stopping patient
