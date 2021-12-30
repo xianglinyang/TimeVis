@@ -1,3 +1,7 @@
+"""
+Edge dataset from temporal complex
+"""
+
 from torch.utils.data import Dataset
 from PIL import Image
 
