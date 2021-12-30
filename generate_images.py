@@ -3,7 +3,9 @@ import sys
 import os
 import numpy as np
 import json
+from umap.umap_ import find_ab_params
 
+from singleVis.losses import SingleVisLoss, UmapLoss, ReconstructionLoss
 from singleVis.SingleVisualizationModel import SingleVisualizationModel
 from singleVis.trainer import SingleVisTrainer
 from singleVis.data import DataProvider
@@ -44,6 +46,15 @@ from Model.model import *
 net = resnet18()
 data_provider = DataProvider(content_path, net, 1, TIME_STEPS, 1, split=-1, device=DEVICE, verbose=1)
 model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256)
+negative_sample_rate = 5
+min_dist = .1
+_a, _b = find_ab_params(1.0, min_dist)
+umap_loss_fn = UmapLoss(negative_sample_rate, DEVICE, _a, _b, repulsion_strength=1.0)
+recon_loss_fn = ReconstructionLoss(beta=1.0)
+criterion = SingleVisLoss(umap_loss_fn, recon_loss_fn, lambd=LAMBDA)
+
+optimizer = torch.optim.Adam(model.parameters(), lr=.01, weight_decay=1e-5)
+lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=.1)
 
 trainer = SingleVisTrainer(model, criterion=None, optimizer=None, lr_scheduler=None, edge_loader=None, DEVICE=DEVICE)
 trainer.load(file_path=os.path.join(data_provider.model_path,"SV.pth"))
