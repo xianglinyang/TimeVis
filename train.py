@@ -23,11 +23,13 @@ parser = argparse.ArgumentParser(description='Process hyperparameters...')
 parser.add_argument('--content_path', type=str)
 parser.add_argument('-d','--dataset', choices=['online','cifar10', 'mnist', 'fmnist'])
 parser.add_argument('-p',"--preprocess", choice=[0,1], default=0)
+parser.add_argument('-g',"--gpu_id", type=int, choice=[0,1,2,3], default=0)
 args = parser.parse_args()
 
 CONTENT_PATH = args.content_path
 DATASET = args.dataset
 PREPROCESS = args.preprocess
+GPU_ID = args.gpu_id
 
 LEN = config.dataset_config[DATASET]["TRAINING_LEN"]
 LAMBDA = config.dataset_config[DATASET]["LAMBDA"]
@@ -36,7 +38,7 @@ L_BOUND = config.dataset_config[DATASET]["L_BOUND"]
 
 # define hyperparameters
 
-DEVICE = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda:{:d}".format(GPU_ID) if torch.cuda.is_available() else "cpu")
 EPOCH_NUMS = config.dataset_config[DATASET]["training_config"]["EPOCH_NUM"]
 TIME_STEPS = config.dataset_config[DATASET]["training_config"]["TIME_STEPS"]
 TEMPORAL_PERSISTENT = config.dataset_config[DATASET]["training_config"]["TEMPORAL_PERSISTENT"]
