@@ -2,13 +2,9 @@ import torch
 import sys
 import os
 import numpy as np
-from torch.utils.data import DataLoader
-from torch.utils.data import WeightedRandomSampler
-from umap.umap_ import find_ab_params
 import json
 
 from singleVis.SingleVisualizationModel import SingleVisualizationModel
-from singleVis.losses import SingleVisLoss, UmapLoss, ReconstructionLoss
 from singleVis.trainer import SingleVisTrainer
 from singleVis.data import DataProvider
 from singleVis.visualizer import visualizer
