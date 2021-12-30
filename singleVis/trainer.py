@@ -12,7 +12,7 @@ import torch
 Trainer should contains
 1. train_step function
 2. early stop
-3....
+3. ...
 """
 
 
@@ -36,7 +36,7 @@ class SingleVisTrainer:
         umap_losses = []
         recon_losses = []
 
-        t = tqdm(self.edge_loader, leave=False, total=len(self.edge_loader))
+        t = tqdm(self.edge_loader, leave=True, total=len(self.edge_loader))
 
         # for data in self.edge_loader:
         for data in t:
@@ -62,7 +62,6 @@ class SingleVisTrainer:
                                                                 sum(recon_losses) / len(recon_losses),
                                                                 sum(all_loss) / len(all_loss)))
         return self.loss
-
 
     def train(self, PATIENT, MAX_EPOCH_NUMS):
         patient = PATIENT
@@ -96,7 +95,7 @@ class SingleVisTrainer:
         self.optimizer.load_state_dict(save_model["optimizer"])
         self.model.to(self.DEVICE)
         # self.optimizer.to(self.DEVICE)
-        print("Successfully load visualization mdoel")
+        print("Successfully load visualization model...")
 
     def save(self, save_dir, file_name="singleVisModel"):
         """
@@ -110,3 +109,4 @@ class SingleVisTrainer:
             "optimizer": self.optimizer.state_dict()}
         save_path = os.path.join(save_dir, file_name + '.pth')
         torch.save(save_model, save_path)
+        print("Successfully save visualization model...")
