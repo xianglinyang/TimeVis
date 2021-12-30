@@ -7,7 +7,7 @@ from singleVis.utils import convert_distance_to_probability, compute_cross_entro
 
 
 class UmapLoss(nn.Module):
-    def __init__(self, negative_sample_rate, _a=1.0, _b=1.0, repulsion_strength=1.0, device="cuda:0"):
+    def __init__(self, negative_sample_rate, device, _a=1.0, _b=1.0, repulsion_strength=1.0):
         super(UmapLoss, self).__init__()
 
         self._negative_sample_rate = negative_sample_rate
@@ -67,11 +67,11 @@ class ReconstructionLoss(nn.Module):
         self._beta = beta
 
     def forward(self, edge_to, edge_from, recon_to, recon_from, a_to, a_from):
-    # def forward(self, edge_to, edge_from, recon_to, recon_from):
-        # loss1 = torch.mean(torch.mean(torch.multiply(torch.pow((1+a_to), self._beta), torch.pow(edge_to - recon_to, 2)), 1))
-        # loss2 = torch.mean(torch.mean(torch.multiply(torch.pow((1+a_from), self._beta), torch.pow(edge_from - recon_from, 2)), 1))
-        loss1 = torch.mean(torch.mean(torch.pow(edge_to - recon_to, 2), 1))
-        loss2 = torch.mean(torch.mean(torch.pow(edge_from - recon_from, 2), 1))
+        loss1 = torch.mean(torch.mean(torch.multiply(torch.pow((1+a_to), self._beta), torch.pow(edge_to - recon_to, 2)), 1))
+        loss2 = torch.mean(torch.mean(torch.multiply(torch.pow((1+a_from), self._beta), torch.pow(edge_from - recon_from, 2)), 1))
+        # without attention weights
+        # loss1 = torch.mean(torch.mean(torch.pow(edge_to - recon_to, 2), 1))
+        # loss2 = torch.mean(torch.mean(torch.pow(edge_from - recon_from, 2), 1))
         return (loss1 + loss2)/2
 
 
@@ -85,7 +85,6 @@ class SingleVisLoss(nn.Module):
     def forward(self, edge_to, edge_from, a_to, a_from, outputs):
         embedding_to, embedding_from = outputs["umap"]
         recon_to, recon_from = outputs["recon"]
-        # , alpha_to, alpha_from
 
         recon_l = self.recon_loss(edge_to, edge_from, recon_to, recon_from, a_to, a_from)
         # recon_l = self.recon_loss(edge_to, edge_from, recon_to, recon_from)
