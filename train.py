@@ -1,3 +1,4 @@
+from numpy.random import choice
 import torch
 import sys
 import os
@@ -21,14 +22,17 @@ import singleVis.config as config
 parser = argparse.ArgumentParser(description='Process hyperparameters...')
 parser.add_argument('--content_path', type=str)
 parser.add_argument('-d','--dataset', choices=['online','cifar10', 'mnist', 'fmnist'])
-
+parser.add_argument('-p',"--preprocess", choice=[0,1], default=0)
 args = parser.parse_args()
 
 CONTENT_PATH = args.content_path
 DATASET = args.dataset
+PREPROCESS = args.preprocess
+
 LEN = config.dataset_config[DATASET]["TRAINING_LEN"]
 LAMBDA = config.dataset_config[DATASET]["LAMBDA"]
 DOWNSAMPLING_RATE = config.dataset_config[DATASET]["DOWNSAMPLING_RATE"]
+L_BOUND = config.dataset_config[DATASET]["L_BOUND"]
 
 # define hyperparameters
 
@@ -50,7 +54,8 @@ classes = ("airplane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "sh
 selected_idxs = np.random.choice(np.arange(LEN), size=int(LEN*DOWNSAMPLING_RATE), replace=False)
 
 data_provider = DataProvider(content_path, net, 1, TIME_STEPS, 1, split=-1, device=DEVICE, verbose=1)
-# data_provider.initialize(LEN//10, l_bound=0.6)
+if PREPROCESS:
+    data_provider.initialize(LEN//10, l_bound=L_BOUND)
 
 model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256)
 negative_sample_rate = 5
@@ -78,6 +83,17 @@ trainer.train(PATIENT, EPOCH_NUMS)
 trainer.save(save_dir=data_provider.model_path, file_name="SV")
 trainer.load(file_path=os.path.join(data_provider.model_path,"SV.pth"))
 
+########################################################################################################################
+# visualization results
+########################################################################################################################
+from singleVis.visualizer import visualizer
+
+vis = visualizer(data_provider, trainer.model, 200, 10, classes)
+save_dir = os.path.join(data_provider.content_path, "img")
+if not os.path.exists(save_dir):
+    os.mkdir(save_dir)
+for i in range(1, TIME_STEPS+1, 1):
+    vis.savefig(i, path=os.path.join(save_dir, "{}_{}.png".format(DATASET, i)))
 
 ########################################################################################################################
 # evaluate
