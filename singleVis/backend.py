@@ -478,7 +478,7 @@ def construct_spatial_temporal_complex_prune(data_provider, TIME_STEPS, NUMS, TE
         fitting_data = np.concatenate((train_data, border_centers), axis=0)
         pred_model = data_provider.prediction_function(t)
         attention_t = get_attention(pred_model, fitting_data, temperature=.01, device=data_provider.DEVICE, verbose=1)
-        t_num = len(train_data)
+        t_num = len(remain_idxs)
         b_num = len(border_centers)
         if edge_to is None:
             edge_to = edge_to_t
