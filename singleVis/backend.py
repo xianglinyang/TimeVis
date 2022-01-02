@@ -462,7 +462,7 @@ def construct_spatial_temporal_complex_prune(data_provider, TIME_STEPS, NUMS, TE
         # load train data and border centers
         train_data = data_provider.train_representation(t).squeeze()
 
-        remain_idxs = select_points_step(train_data[selected_idxs], threshold=0.7, lower_b=3000, n_neighbors=15)
+        remain_idxs = select_points_step(train_data[selected_idxs], threshold=0.7, lower_b=2000, n_neighbors=15)
         selected_idxs = selected_idxs[remain_idxs]
         _, _ = hausdorff_dist(train_data, selected_idxs, n_neighbors=15)
         time_step_idxs_list.append(remain_idxs.tolist())
@@ -510,6 +510,7 @@ def construct_spatial_temporal_complex_prune(data_provider, TIME_STEPS, NUMS, TE
     # boundary points...
     heads, tails, vals = construct_temporal_edge_dataset(X=feature_vectors,
                                                         time_step_nums=time_step_nums,
+                                                        time_step_idxs_list=time_step_idxs_list,
                                                         persistent=TEMPORAL_PERSISTENT,
                                                         time_steps=TIME_STEPS,
                                                         knn_indices=knn_indices,
