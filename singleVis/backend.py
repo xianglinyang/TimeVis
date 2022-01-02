@@ -14,7 +14,7 @@ from pynndescent import NNDescent
 from sklearn.utils import check_random_state
 from sklearn.neighbors import KDTree
 
-from singleVis.utils import jaccard_similarity, knn
+from singleVis.utils import jaccard_similarity, knn, hausdorff_dist
 
 
 def get_graph_elements(graph_, n_epochs):
@@ -440,7 +440,7 @@ def construct_spatial_temporal_complex(data_provider, selected_idxs, TIME_STEPS,
 
 
 # construct spatio-temporal complex and get edges
-def construct_spatial_temporal_complex_prune(data_provider, selected_idxs, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT):
+def construct_spatial_temporal_complex_prune(data_provider, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT):
     # dummy input
     edge_to = None
     edge_from = None
@@ -452,13 +452,21 @@ def construct_spatial_temporal_complex_prune(data_provider, selected_idxs, TIME_
     attention = None
     knn_indices = None
     time_step_nums = list()
+    time_step_idxs_list = list()
+
+    train_num = data_provider.train_num
+    selected_idxs = np.random.choice(np.arange(train_num), size=train_num // 5, replace=False)
 
     # each time step
     for t in range(1, TIME_STEPS+1, 1):
         # load train data and border centers
         train_data = data_provider.train_representation(t).squeeze()
-        train_data = train_data[selected_idxs]
-        selected_idxs = selected_idxs[:int(0.9*len(selected_idxs))]
+
+        remain_idxs = select_points_step(train_data[selected_idxs], threshold=0.7, lower_b=3000, n_neighbors=15)
+        selected_idxs = selected_idxs[remain_idxs]
+        _, _ = hausdorff_dist(train_data, selected_idxs, n_neighbors=15)
+        time_step_idxs_list.append(remain_idxs.tolist())
+
         border_centers = data_provider.border_representation(t).squeeze()
         border_centers = border_centers
 
@@ -676,18 +684,22 @@ def prune_points(knn_indices, prune_num, threshold):
 
 def select_points_step(train_data, threshold, lower_b,  n_neighbors=15):
     '''select subset of train data that can cover all dataset'''
-    remain_idxs = list(range(len(train_data)))
+    remain_idxs = np.array(list(range(len(train_data))))
     remain_data = train_data[remain_idxs]
     while len(remain_data) > lower_b:
         knn_idxs, _ = knn(remain_data, k=n_neighbors)
-        selected_prune_idxs = prune_points(knn_idxs, int(n_neighbors*2/3), threshold=threshold)
-        selected_idxs = [i for i in range(len(knn_idxs)) if i not in selected_idxs]
+        selected_prune_idxs = prune_points(knn_idxs, int(2/3*n_neighbors), threshold=threshold)
+        selected_idxs = [i for i in range(len(knn_idxs)) if i not in selected_prune_idxs]
         if len(selected_idxs)<lower_b:
-            selected_idxs = np.random.choice(selected_idxs, lower_b, replace=False)
+            add_selcted = np.random.choice(selected_prune_idxs, lower_b-len(selected_idxs), replace=False)
+            selected_idxs = np.concatenate((np.array(selected_idxs).astype("int"), add_selcted.astype("int")), axis=0)
             remain_idxs = remain_idxs[selected_idxs]
             break
         if len(selected_prune_idxs) < 200:
             remain_idxs = remain_idxs[selected_idxs]
             break
+        remain_idxs = remain_idxs[selected_idxs]
         remain_data = train_data[remain_idxs]
+    # _, _ = hausdorff_dist(train_data, remain_idxs, n_neighbors=15)
+    # print("hausdorff distance: {:.2f}".format(hausdorff))
     return remain_idxs
