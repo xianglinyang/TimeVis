@@ -2,6 +2,7 @@
 backend APIs for Single Visualization model trainer
 """
 # import modules
+from os import replace
 import torch
 import time
 import numpy as np
@@ -13,7 +14,7 @@ from pynndescent import NNDescent
 from sklearn.utils import check_random_state
 from sklearn.neighbors import KDTree
 
-from singleVis.utils import jaccard_similarity
+from singleVis.utils import jaccard_similarity, knn
 
 
 def get_graph_elements(graph_, n_epochs):
@@ -267,11 +268,12 @@ def construct_temporal_edge_dataset_distance(X, time_step_nums, persistent, time
     return rows, cols, vals
 
 
-def construct_temporal_edge_dataset(X, time_step_nums, persistent, time_steps, knn_indices, sigmas, rhos, k=15):
+def construct_temporal_edge_dataset(X, time_step_nums, time_step_idxs_list, persistent, time_steps, knn_indices, sigmas, rhos, k=15):
     """
     construct temporal edges based on same data
     link data to its next epoch
     :param time_step_nums: [(train_num, b_num)]
+    :param time_step_idxs_list: list of index to prev train_data
     :param persistent: the length of sliding window
     :param time_steps: the number of time steps we are looking at
     :param knn_indices: (n_vertices*1.1*time_steps, k)
@@ -299,13 +301,20 @@ def construct_temporal_edge_dataset(X, time_step_nums, persistent, time_steps, k
 
             next_knn = knn_indices[time_step_num[step+window]:time_step_num[step+window] + time_step_nums[step + window][0]]
 
-            knn_indices_in[all_step_num[step]: all_step_num[step] + time_step_nums[step + window][0]] = next_knn
+            # knn_indices_in[all_step_num[step]: all_step_num[step] + time_step_nums[step + window][0]] = next_knn
+            increase_idx = all_step_num[step]
+            assert len(next_knn) == len(time_step_idxs_list[step+window])
+            for i in range(len(time_step_idxs_list[step+window])):
+                knn_indices_in[increase_idx + time_step_idxs_list[step+window][i]]=next_knn[i]
             knn_indices_in = knn_indices_in.astype('int')
 
-            indices = np.arange(all_step_num[step], all_step_num[step] + time_step_nums[step+window][0], 1)
+            indices = np.arange(all_step_num[step], all_step_num[step] + time_step_nums[step][0], 1)[time_step_idxs_list[step+window]]
             knn_dists_t = knn_dists(X, indices, next_knn)
 
-            knn_dist[all_step_num[step]:all_step_num[step] + time_step_nums[step + window][0]] = knn_dists_t
+            # knn_dist[all_step_num[step]:all_step_num[step] + time_step_nums[step + window][0]] = knn_dists_t
+            assert len(knn_dists_t) == len(time_step_idxs_list[step+window])
+            for i in range(len(time_step_idxs_list[step+window])):
+                knn_dist[increase_idx + time_step_idxs_list[step+window][i]]=knn_dists_t[i]
             knn_dist = knn_dist.astype('float32')
 
             rows_t, cols_t, vals_t, _ = compute_membership_strengths(knn_indices_in, knn_dist, sigmas, rhos, return_dists=False)
@@ -319,13 +328,13 @@ def construct_temporal_edge_dataset(X, time_step_nums, persistent, time_steps, k
             knn_indices_in = - np.ones((n_all, k))
             knn_dist = np.zeros((n_all, k))
 
-            prev_knn = knn_indices[time_step_num[step-window]:time_step_num[step-window] + time_step_nums[step][0]]
+            prev_knn = knn_indices[time_step_num[step-window]:time_step_num[step-window] + time_step_nums[step-window][0]]
 
-            knn_indices_in[all_step_num[step]: all_step_num[step] + time_step_nums[step][0]] = prev_knn
+            knn_indices_in[all_step_num[step]: all_step_num[step] + time_step_nums[step][0]] = prev_knn[time_step_idxs_list[step]]
             knn_indices_in = knn_indices_in.astype('int')
 
             indices = np.arange(all_step_num[step], all_step_num[step] + time_step_nums[step][0], 1)
-            knn_dists_t = knn_dists(X, indices, prev_knn)
+            knn_dists_t = knn_dists(X, indices, prev_knn[time_step_idxs_list[step]])
 
             knn_dist[all_step_num[step]:all_step_num[step] + time_step_nums[step][0]] = knn_dists_t
             knn_dist = knn_dist.astype('float32')
@@ -340,6 +349,98 @@ def construct_temporal_edge_dataset(X, time_step_nums, persistent, time_steps, k
 
 # construct spatio-temporal complex and get edges
 def construct_spatial_temporal_complex(data_provider, selected_idxs, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT):
+    # dummy input
+    edge_to = None
+    edge_from = None
+    sigmas = None
+    rhos = None
+    weight = None
+    probs = None
+    feature_vectors = None
+    attention = None
+    knn_indices = None
+    time_step_nums = list()
+    time_step_idxs_list = list()
+    selected_idxs_t = np.array(range(len(selected_idxs)))
+
+    # each time step
+    for t in range(1, TIME_STEPS+1, 1):
+        # load train data and border centers
+        train_data = data_provider.train_representation(t).squeeze()
+        train_data = train_data[selected_idxs]
+        time_step_idxs_list.append(selected_idxs_t.tolist())
+
+        selected_idxs_t = np.random.choice(list(range(len(selected_idxs))), int(0.9*len(selected_idxs)), replace=False)
+        selected_idxs = selected_idxs[selected_idxs_t]
+        border_centers = data_provider.border_representation(t).squeeze()
+        border_centers = border_centers
+
+        complex, sigmas_t1, rhos_t1, knn_idxs_t = fuzzy_complex(train_data, 15)
+        bw_complex, sigmas_t2, rhos_t2, _ = boundary_wise_complex(train_data, border_centers, 15)
+        edge_to_t, edge_from_t, weight_t = construct_step_edge_dataset(complex, bw_complex, NUMS)
+        sigmas_t = np.concatenate((sigmas_t1, sigmas_t2[len(sigmas_t1):]), axis=0)
+        rhos_t = np.concatenate((rhos_t1, rhos_t2[len(rhos_t1):]), axis=0)
+        fitting_data = np.concatenate((train_data, border_centers), axis=0)
+        pred_model = data_provider.prediction_function(t)
+        attention_t = get_attention(pred_model, fitting_data, temperature=.01, device=data_provider.DEVICE, verbose=1)
+        t_num = len(train_data)
+        b_num = len(border_centers)
+
+        if edge_to is None:
+            edge_to = edge_to_t
+            edge_from = edge_from_t
+            weight = weight_t
+            probs = weight_t / weight_t.max()
+            feature_vectors = fitting_data
+            attention = attention_t
+            sigmas = sigmas_t
+            rhos = rhos_t
+            knn_indices = knn_idxs_t
+            time_step_nums.append((t_num, b_num))
+        else:
+            # every round, we need to add len(data) to edge_to(as well as edge_from) index
+            increase_idx = len(feature_vectors)
+            edge_to = np.concatenate((edge_to, edge_to_t + increase_idx), axis=0)
+            edge_from = np.concatenate((edge_from, edge_from_t + increase_idx), axis=0)
+            # normalize weight to be in range (0, 1)
+            weight = np.concatenate((weight, weight_t), axis=0)
+            probs_t = weight_t / weight_t.max()
+            probs = np.concatenate((probs, probs_t), axis=0)
+            sigmas = np.concatenate((sigmas, sigmas_t), axis=0)
+            rhos = np.concatenate((rhos, rhos_t), axis=0)
+            feature_vectors = np.concatenate((feature_vectors, fitting_data), axis=0)
+            attention = np.concatenate((attention, attention_t), axis=0)
+            knn_indices = np.concatenate((knn_indices, knn_idxs_t+increase_idx), axis=0)
+            time_step_nums.append((t_num, b_num))
+
+    # boundary points...
+    heads, tails, vals = construct_temporal_edge_dataset(X=feature_vectors,
+                                                        time_step_nums=time_step_nums,
+                                                        time_step_idxs_list = time_step_idxs_list,
+                                                        persistent=TEMPORAL_PERSISTENT,
+                                                        time_steps=TIME_STEPS,
+                                                        knn_indices=knn_indices,
+                                                        sigmas=sigmas,
+                                                        rhos=rhos)
+    # remove elements with very low probability
+    eliminate_idxs = (vals < 1e-2)
+    heads = heads[eliminate_idxs]
+    tails = tails[eliminate_idxs]
+    vals = vals[eliminate_idxs]
+    # increase weight of temporal edges
+    vals = vals*TEMPORAL_EDGE_WEIGHT
+
+    weight = np.concatenate((weight, vals), axis=0)
+    probs_t = vals / (vals.max() + 1e-4)
+    probs = np.concatenate((probs, probs_t), axis=0)
+    edge_to = np.concatenate((edge_to, heads), axis=0)
+    edge_from = np.concatenate((edge_from, tails), axis=0)
+
+    return edge_to, edge_from, probs, feature_vectors, attention
+
+
+# construct spatio-temporal complex and get edges
+def construct_spatial_temporal_complex_prune(data_provider, selected_idxs, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT):
     # dummy input
     edge_to = None
     edge_from = None
@@ -421,7 +522,6 @@ def construct_spatial_temporal_complex(data_provider, selected_idxs, TIME_STEPS,
     edge_from = np.concatenate((edge_from, tails), axis=0)
 
     return edge_to, edge_from, probs, feature_vectors, attention
-
 
 def spatio_temporal_simplicial_set(
         rows,
@@ -572,3 +672,22 @@ def prune_points(knn_indices, prune_num, threshold):
                 prune_dict[j] = True
                 selected_pruned.append(int(j))
     return selected_pruned
+
+
+def select_points_step(train_data, threshold, lower_b,  n_neighbors=15):
+    '''select subset of train data that can cover all dataset'''
+    remain_idxs = list(range(len(train_data)))
+    remain_data = train_data[remain_idxs]
+    while len(remain_data) > lower_b:
+        knn_idxs, _ = knn(remain_data, k=n_neighbors)
+        selected_prune_idxs = prune_points(knn_idxs, int(n_neighbors*2/3), threshold=threshold)
+        selected_idxs = [i for i in range(len(knn_idxs)) if i not in selected_idxs]
+        if len(selected_idxs)<lower_b:
+            selected_idxs = np.random.choice(selected_idxs, lower_b, replace=False)
+            remain_idxs = remain_idxs[selected_idxs]
+            break
+        if len(selected_prune_idxs) < 200:
+            remain_idxs = remain_idxs[selected_idxs]
+            break
+        remain_data = train_data[remain_idxs]
+    return remain_idxs

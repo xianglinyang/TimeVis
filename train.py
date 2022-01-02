@@ -22,8 +22,8 @@ import singleVis.config as config
 parser = argparse.ArgumentParser(description='Process hyperparameters...')
 parser.add_argument('--content_path', type=str)
 parser.add_argument('-d','--dataset', choices=['online','cifar10', 'mnist', 'fmnist'])
-parser.add_argument('-p',"--preprocess", choice=[0,1], default=0)
-parser.add_argument('-g',"--gpu_id", type=int, choice=[0,1,2,3], default=0)
+parser.add_argument('-p',"--preprocess", choices=[0,1], default=0)
+parser.add_argument('-g',"--gpu_id", type=int, choices=[0,1,2,3], default=0)
 args = parser.parse_args()
 
 CONTENT_PATH = args.content_path
