@@ -15,7 +15,7 @@ from sklearn.utils import check_random_state
 from sklearn.neighbors import KDTree
 
 from singleVis.utils import jaccard_similarity, knn, hausdorff_dist
-
+from singleVis.kcenter_greedy import kCenterGreedy
 
 def get_graph_elements(graph_, n_epochs):
     """
@@ -456,16 +456,22 @@ def construct_spatial_temporal_complex_prune(data_provider, TIME_STEPS, NUMS, TE
 
     train_num = data_provider.train_num
     selected_idxs = np.random.choice(np.arange(train_num), size=train_num // 5, replace=False)
+    lb = int(train_num/10/0.9)
 
     # each time step
     for t in range(1, TIME_STEPS+1, 1):
         # load train data and border centers
         train_data = data_provider.train_representation(t).squeeze()
 
-        remain_idxs = select_points_step(train_data[selected_idxs], threshold=0.7, lower_b=2000, n_neighbors=15)
+        remain_idxs = select_points_step(train_data[selected_idxs], threshold=0.7, lower_b=int(lb*0.9), n_neighbors=15)
+
+        lb = int(lb*0.9)
+
         selected_idxs = selected_idxs[remain_idxs]
         _, _ = hausdorff_dist(train_data, selected_idxs, n_neighbors=15)
         time_step_idxs_list.append(remain_idxs.tolist())
+
+        train_data = train_data[selected_idxs]
 
         border_centers = data_provider.border_representation(t).squeeze()
         border_centers = border_centers
@@ -506,6 +512,104 @@ def construct_spatial_temporal_complex_prune(data_provider, TIME_STEPS, NUMS, TE
             attention = np.concatenate((attention, attention_t), axis=0)
             knn_indices = np.concatenate((knn_indices, knn_idxs_t+increase_idx), axis=0)
             time_step_nums.append((t_num, b_num))
+
+    # boundary points...
+    heads, tails, vals = construct_temporal_edge_dataset(X=feature_vectors,
+                                                        time_step_nums=time_step_nums,
+                                                        time_step_idxs_list=time_step_idxs_list,
+                                                        persistent=TEMPORAL_PERSISTENT,
+                                                        time_steps=TIME_STEPS,
+                                                        knn_indices=knn_indices,
+                                                        sigmas=sigmas,
+                                                        rhos=rhos)
+    # remove elements with very low probability
+    eliminate_idxs = (vals < 1e-2)
+    heads = heads[eliminate_idxs]
+    tails = tails[eliminate_idxs]
+    vals = vals[eliminate_idxs]
+    # increase weight of temporal edges
+    vals = vals*TEMPORAL_EDGE_WEIGHT
+
+    weight = np.concatenate((weight, vals), axis=0)
+    probs_t = vals / (vals.max() + 1e-4)
+    probs = np.concatenate((probs, probs_t), axis=0)
+    edge_to = np.concatenate((edge_to, heads), axis=0)
+    edge_from = np.concatenate((edge_from, tails), axis=0)
+
+    return edge_to, edge_from, probs, feature_vectors, attention
+
+
+# construct spatio-temporal complex and get edges
+def construct_spatial_temporal_complex_kc(data_provider, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT):
+    # dummy input
+    edge_to = None
+    edge_from = None
+    sigmas = None
+    rhos = None
+    weight = None
+    probs = None
+    feature_vectors = None
+    attention = None
+    knn_indices = None
+    time_step_nums = list()
+    time_step_idxs_list = list()
+
+    train_num = data_provider.train_num
+    selected_idxs = np.random.choice(np.arange(train_num), size=int(train_num * 0.04), replace=False)
+    curr_num = int(train_num *0.04)
+
+    # each time step
+    for t in range(TIME_STEPS, 0, -1):
+        # load train data and border centers
+        train_data = data_provider.train_representation(t).squeeze()
+        kc = kCenterGreedy(train_data)
+        new_selected = kc.select_batch_with_budgets(selected_idxs,int(curr_num/0.9)-curr_num)
+        selected_idxs = kc.already_selected
+        time_step_idxs_list.insert(0, np.arange(len(selected_idxs)).tolist())
+
+        train_data = train_data[selected_idxs]
+
+        border_centers = data_provider.border_representation(t).squeeze()
+        border_centers = border_centers
+
+        t_num = len(selected_idxs)
+        b_num = len(border_centers)
+
+        complex, sigmas_t1, rhos_t1, knn_idxs_t = fuzzy_complex(train_data, 15)
+        bw_complex, sigmas_t2, rhos_t2, _ = boundary_wise_complex(train_data, border_centers, 15)
+        edge_to_t, edge_from_t, weight_t = construct_step_edge_dataset(complex, bw_complex, NUMS)
+        sigmas_t = np.concatenate((sigmas_t1, sigmas_t2[len(sigmas_t1):]), axis=0)
+        rhos_t = np.concatenate((rhos_t1, rhos_t2[len(rhos_t1):]), axis=0)
+        fitting_data = np.concatenate((train_data, border_centers), axis=0)
+        pred_model = data_provider.prediction_function(t)
+        attention_t = get_attention(pred_model, fitting_data, temperature=.01, device=data_provider.DEVICE, verbose=1)
+
+        if edge_to is None:
+            edge_to = edge_to_t
+            edge_from = edge_from_t
+            weight = weight_t
+            probs = weight_t / weight_t.max()
+            feature_vectors = fitting_data
+            attention = attention_t
+            sigmas = sigmas_t
+            rhos = rhos_t
+            knn_indices = knn_idxs_t
+            time_step_nums.insert(0, (t_num, b_num))
+        else:
+            # every round, we need to add len(data) to edge_to(as well as edge_from) index
+            increase_idx = len(fitting_data)
+            edge_to = np.concatenate((edge_to_t, edge_to + increase_idx), axis=0)
+            edge_from = np.concatenate((edge_from_t, edge_from + increase_idx), axis=0)
+            # normalize weight to be in range (0, 1)
+            weight = np.concatenate((weight_t, weight), axis=0)
+            probs_t = weight_t / weight_t.max()
+            probs = np.concatenate((probs_t, probs), axis=0)
+            sigmas = np.concatenate((sigmas_t, sigmas), axis=0)
+            rhos = np.concatenate((rhos_t, rhos), axis=0)
+            feature_vectors = np.concatenate((fitting_data, feature_vectors), axis=0)
+            attention = np.concatenate((attention_t, attention), axis=0)
+            knn_indices = np.concatenate((knn_idxs_t, knn_indices+increase_idx), axis=0)
+            time_step_nums.insert(0, (t_num, b_num))
 
     # boundary points...
     heads, tails, vals = construct_temporal_edge_dataset(X=feature_vectors,

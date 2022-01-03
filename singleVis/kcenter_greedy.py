@@ -97,7 +97,7 @@ class kCenterGreedy(object):
 
       self.update_distances([ind], only_new=True, reset_dist=False)
       new_batch.append(ind)
-    print('Hausdorff distance is %0.2f'% max(self.min_distances))
+    print('Hausdorff distance is {:.2f} with {:d} points'.format(self.min_distances.max(), len(already_selected)+len(new_batch)))
     
     self.already_selected = np.concatenate((already_selected, np.array(new_batch)))
 
