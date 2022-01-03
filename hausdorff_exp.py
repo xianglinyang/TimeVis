@@ -70,7 +70,7 @@ for stage in [1,4,7]:
         for _ in range(10):
             selected_idxs = np.random.choice(np.arange(LEN), size=int(LEN*r), replace=False)
             train_data = data_provider.train_representation(stage).squeeze()
-            hausdorff_, t_ = utils.hausdorff_dist(train_data, selected_idxs, n_neighbors=15)
+            hausdorff_, t_ = utils.hausdorff_dist(train_data, selected_idxs)
             mean_list.append(hausdorff_)
             t.append(t_)
         print("{:.2f}:{:.3f}".format(r, np.array(mean_list).mean()))
