@@ -1,3 +1,4 @@
+from re import sub
 import torch
 import math
 import tqdm
@@ -6,6 +7,7 @@ import json
 import time
 from pynndescent import NNDescent
 from sklearn.neighbors import KDTree
+from sklearn.metrics import pairwise_distances
 
 def mixup_bi(model, image1, image2, label, target_cls, device, diff=0.1, max_iter=8, l_bound=0.8):
     '''Get BPs based on mixup method, fast
@@ -201,15 +203,29 @@ def knn(data, k):
     return knn_indices, knn_dists
 
 
-def hausdorff_dist(X, subset_idxs, n_neighbors, metric="euclidean", verbose=1):
+def hausdorff_dist(X, subset_idxs, metric="euclidean", verbose=1):
     '''
     Calculate the hausdorff distance of X and its subset
     '''
     t_s = time.time()
     tree = KDTree(X[subset_idxs], metric=metric)
-    knn_dists, _ = tree.query(X, k=n_neighbors)
-    hausdorff_dist = knn_dists.max()
+    knn_dists, _ = tree.query(X, k=1)
+    hausdorff_dist = knn_dists[:, 0].max()
     t_e = time.time()
     if verbose>0:
         print("Calculate hausdorff distance {:.2f} for {:d}/{:d} in {:.3f} seconds...".format(hausdorff_dist, len(subset_idxs),len(X), t_e-t_s))
     return hausdorff_dist, round(t_e-t_s,3)
+
+
+def hausdorff_dist_cus(X, subset_idxs, metric="euclidean", verbose=1):
+    t_s = time.time()
+    dist = pairwise_distances(X, X[subset_idxs], metric=metric)
+    min_distances = np.min(dist, axis=1).reshape(-1,1)
+    hausdorff = np.min(min_distances)
+    t_e = time.time()
+    if verbose > 0:
+        print("Calculate hausdorff distance {:.2f} for {:d}/{:d} in {:.3f} seconds...".format(hausdorff_dist, len(subset_idxs),len(X), t_e-t_s))
+    return hausdorff, round(t_e-t_s,3)
+
+
+
