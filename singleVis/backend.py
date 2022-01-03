@@ -563,7 +563,8 @@ def construct_spatial_temporal_complex_kc(data_provider, TIME_STEPS, NUMS, TEMPO
         # load train data and border centers
         train_data = data_provider.train_representation(t).squeeze()
         kc = kCenterGreedy(train_data)
-        new_selected = kc.select_batch_with_budgets(selected_idxs,int(curr_num/0.9)-curr_num)
+        _ = kc.select_batch_with_budgets(selected_idxs,int(curr_num/0.9)-curr_num)
+        curr_num = int(curr_num/0.9)
         selected_idxs = kc.already_selected
         time_step_idxs_list.insert(0, np.arange(len(selected_idxs)).tolist())
 
