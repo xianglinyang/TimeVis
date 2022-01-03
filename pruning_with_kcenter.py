@@ -15,7 +15,7 @@ from singleVis.losses import SingleVisLoss, UmapLoss, ReconstructionLoss
 from singleVis.edge_dataset import DataHandler
 from singleVis.trainer import SingleVisTrainer
 from singleVis.data import DataProvider
-from singleVis.backend import construct_spatial_temporal_complex_kc
+from singleVis.backend import construct_spatial_temporal_complex_kc, construct_spatial_temporal_complex_kc_dist
 from singleVis.utils import hausdorff_dist
 import singleVis.config as config
 
@@ -36,6 +36,7 @@ LEN = config.dataset_config[DATASET]["TRAINING_LEN"]
 LAMBDA = config.dataset_config[DATASET]["LAMBDA"]
 DOWNSAMPLING_RATE = config.dataset_config[DATASET]["DOWNSAMPLING_RATE"]
 L_BOUND = config.dataset_config[DATASET]["L_BOUND"]
+MAX_HAUSDORFF = config.dataset_config[DATASET]["MAX_HAUSDORFF"]
 
 # define hyperparameters
 
@@ -70,7 +71,9 @@ criterion = SingleVisLoss(umap_loss_fn, recon_loss_fn, lambd=LAMBDA)
 optimizer = torch.optim.Adam(model.parameters(), lr=.01, weight_decay=1e-5)
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=.1)
 
-edge_to, edge_from, probs, feature_vectors, attention = construct_spatial_temporal_complex_kc(data_provider, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT)
+edge_to, edge_from, probs, feature_vectors, attention = construct_spatial_temporal_complex_kc_dist(data_provider, MAX_HAUSDORFF, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT)
+# edge_to, edge_from, probs, feature_vectors, attention = construct_spatial_temporal_complex_kc(data_provider, LEN//10, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT)
+
 dataset = DataHandler(edge_to, edge_from, feature_vectors, attention)
 n_samples = int(np.sum(NUMS * probs) // 1)
 # chosse sampler based on the number of dataset
@@ -82,7 +85,7 @@ edge_loader = DataLoader(dataset, batch_size=1000, sampler=sampler)
 
 trainer = SingleVisTrainer(model, criterion, optimizer, lr_scheduler,edge_loader=edge_loader, DEVICE=DEVICE)
 trainer.train(PATIENT, EPOCH_NUMS)
-trainer.save(save_dir=data_provider.model_path, file_name="prune_SV")
+trainer.save(save_dir=data_provider.model_path, file_name="prune_dist_SV")
 # trainer.load(file_path=os.path.join(data_provider.model_path,"SV.pth"))
 
 ########################################################################################################################
@@ -102,7 +105,7 @@ trainer.save(save_dir=data_provider.model_path, file_name="prune_SV")
 ########################################################################################################################
 from singleVis.eval.evaluator import Evaluator
 evaluator = Evaluator(data_provider, trainer)
-evaluator.save_eval(n_neighbors=15, file_name="prune_evaluation")
+evaluator.save_eval(n_neighbors=15, file_name="prune_dist_evaluation")
 
 
 

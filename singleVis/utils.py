@@ -210,10 +210,10 @@ def hausdorff_dist(X, subset_idxs, metric="euclidean", verbose=1):
     t_s = time.time()
     tree = KDTree(X[subset_idxs], metric=metric)
     knn_dists, _ = tree.query(X, k=1)
-    hausdorff_dist = knn_dists[:, 0].max()
+    hausdorff = knn_dists[:, 0].max()
     t_e = time.time()
     if verbose>0:
-        print("Calculate hausdorff distance {:.2f} for {:d}/{:d} in {:.3f} seconds...".format(hausdorff_dist, len(subset_idxs),len(X), t_e-t_s))
+        print("Calculate hausdorff distance {:.2f} for {:d}/{:d} in {:.3f} seconds...".format(hausdorff, len(subset_idxs),len(X), t_e-t_s))
     return hausdorff_dist, round(t_e-t_s,3)
 
 
@@ -221,10 +221,10 @@ def hausdorff_dist_cus(X, subset_idxs, metric="euclidean", verbose=1):
     t_s = time.time()
     dist = pairwise_distances(X, X[subset_idxs], metric=metric)
     min_distances = np.min(dist, axis=1).reshape(-1,1)
-    hausdorff = np.min(min_distances)
+    hausdorff = np.max(min_distances)
     t_e = time.time()
     if verbose > 0:
-        print("Calculate hausdorff distance {:.2f} for {:d}/{:d} in {:.3f} seconds...".format(hausdorff_dist, len(subset_idxs),len(X), t_e-t_s))
+        print("Calculate hausdorff distance {:.2f} for {:d}/{:d} in {:.3f} seconds...".format(hausdorff, len(subset_idxs),len(X), t_e-t_s))
     return hausdorff, round(t_e-t_s,3)
 
 

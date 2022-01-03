@@ -53,7 +53,6 @@ from Model.model import *
 net = resnet18()
 classes = ("airplane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck")
 
-selected_idxs = np.random.choice(np.arange(LEN), size=int(LEN*DOWNSAMPLING_RATE), replace=False)
 
 data_provider = DataProvider(content_path, net, 1, TIME_STEPS, 1, split=-1, device=DEVICE, verbose=1)
 if PREPROCESS:
@@ -70,7 +69,7 @@ criterion = SingleVisLoss(umap_loss_fn, recon_loss_fn, lambd=LAMBDA)
 optimizer = torch.optim.Adam(model.parameters(), lr=.01, weight_decay=1e-5)
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=.1)
 
-edge_to, edge_from, probs, feature_vectors, attention = construct_spatial_temporal_complex(data_provider, selected_idxs, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT)
+edge_to, edge_from, probs, feature_vectors, attention = construct_spatial_temporal_complex(data_provider, int(LEN*DOWNSAMPLING_RATE), TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT)
 dataset = DataHandler(edge_to, edge_from, feature_vectors, attention)
 n_samples = int(np.sum(NUMS * probs) // 1)
 # chosse sampler based on the number of dataset

@@ -103,36 +103,41 @@ class kCenterGreedy(object):
 
     return new_batch
 
-def select_batch_with_distance(self, already_selected, dist):
-    """
-    Diversity promoting active learning method that greedily forms a batch
-    to minimize the maximum distance to a cluster center among all unlabeled
-    datapoints.
+  def select_batch_with_distance(self, already_selected, dist):
+      """
+      Diversity promoting active learning method that greedily forms a batch
+      to minimize the maximum distance to a cluster center among all unlabeled
+      datapoints.
 
-    Args:
-      budgets: batch size
+      Args:
+        budgets: batch size
 
-    Returns:
-      indices of points selected to minimize distance to cluster centers
-    """
+      Returns:
+        indices of points selected to minimize distance to cluster centers
+      """
 
-    print('Calculating distances...')
-    self.update_distances(already_selected, only_new=False, reset_dist=True)
+      print('Calculating distances...')
+      t0 = time.time()
+      self.update_distances(already_selected, only_new=False, reset_dist=True)
+      t1 = time.time()
+      print("calculating distances for {:d} points within {:.2f} seconds...".format(len(already_selected), t1 - t0))
 
-    new_batch = []
+      new_batch = []
 
-    while True:
-      ind = np.argmax(self.min_distances)
-      # New examples should not be in already selected since those points
-      # should have min_distance of zero to a cluster center.
-      assert ind not in already_selected
+      while True:
+        ind = np.argmax(self.min_distances)
+        curr_min = self.min_distances[ind]
+        # New examples should not be in already selected since those points
+        # should have min_distance of zero to a cluster center.
+        assert ind not in already_selected
 
-      self.update_distances([ind], only_new=True, reset_dist=False)
-      new_batch.append(ind)
-      if self.min_distances[ind]<dist:
-          break
-    print('Hausdorff distance is {:0.2f} with {:d} points'.format(max(self.min_distances), len(already_selected)+len(new_batch)))
-    
-    self.already_selected = already_selected.extend(new_batch)
+        self.update_distances([ind], only_new=True, reset_dist=False)
+        new_batch.append(ind)
+        if curr_min<dist:
+            break
+      print('Hausdorff distance is {:.2f} with {:d} points'.format(self.min_distances.max(), len(already_selected)+len(new_batch)))
+      
+      # self.already_selected = already_selected.extend(new_batch)
+      self.already_selected = np.concatenate((already_selected, np.array(new_batch)))
 
-    return new_batch
+      return new_batch
