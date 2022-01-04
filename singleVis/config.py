@@ -59,7 +59,7 @@ dataset_config = {
         "LAMBDA":20.,
         "DOWNSAMPLING_RATE": .1,
         "L_BOUND":0.5,
-        "MAX_HAUSDORFF":23.2,
+        "MAX_HAUSDORFF":21.7,
         "training_config":{
             "EPOCH_NUM": 6,
             "TIME_STEPS": 10,
