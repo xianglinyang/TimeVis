@@ -68,7 +68,7 @@ class SingleVisTrainer:
         patient = PATIENT
         time_start = time.time()
         for epoch in range(MAX_EPOCH_NUMS):
-            print("====================\nepoch:{}\n===================".format(epoch))
+            print("====================\nepoch:{}\n===================".format(epoch+1))
             prev_loss = self.loss
             loss = self.train_step()
             self.lr_scheduler.step()

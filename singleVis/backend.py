@@ -17,6 +17,7 @@ from sklearn.neighbors import KDTree
 
 from singleVis.utils import hausdorff_dist_cus, jaccard_similarity, knn, hausdorff_dist
 from singleVis.kcenter_greedy import kCenterGreedy
+from singleVis.intrinsic_dim import IntrinsicDim
 
 def get_graph_elements(graph_, n_epochs):
     """
@@ -547,7 +548,7 @@ def construct_spatial_temporal_complex_prune(data_provider, TIME_STEPS, NUMS, TE
 
 
 # construct spatio-temporal complex and get edges
-def construct_spatial_temporal_complex_kc(data_provider, init_num, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT):
+def construct_spatial_temporal_complex_kc(data_provider, dist, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT):
     # dummy input
     edge_to = None
     edge_from = None
@@ -563,16 +564,31 @@ def construct_spatial_temporal_complex_kc(data_provider, init_num, TIME_STEPS, N
 
     train_num = data_provider.train_num
     selected_idxs = np.random.choice(np.arange(train_num), size=int(train_num * 0.02), replace=False)
-    target_num = int(math.pow(0.9,(TIME_STEPS-1))*init_num)
+    # target_num = int(math.pow(0.9,(TIME_STEPS-1))*init_num)
 
     # each time step
     for t in range(TIME_STEPS, 0, -1):
         # load train data and border centers
         train_data = data_provider.train_representation(t).squeeze()
-        kc = kCenterGreedy(train_data)
-        _ = kc.select_batch_with_budgets(selected_idxs,target_num-len(selected_idxs))
-        selected_idxs = kc.already_selected.astype("int")
-        target_num = int(len(selected_idxs)/0.9)
+
+        id = IntrinsicDim(train_data)
+        d = id.twonn_dimension_fast()
+        c_all = np.linalg.norm(train_data, axis=1)
+        c = c_all.max()
+        target_num = int(min(math.pow(2*c*math.sqrt(d)/dist, int(d)), len(train_data)))
+
+        if target_num == len(train_data):
+            unselelcted_idxs = [i for i in range(len(train_data)) if i not in selected_idxs]
+            selected_idxs = np.concatenate((selected_idxs, np.array(unselelcted_idxs))).astype("int")
+            _,_ = hausdorff_dist_cus(train_data, selected_idxs)
+        elif target_num <= len(selected_idxs):
+            selected_idxs = selected_idxs.astype("int")
+            _,_ = hausdorff_dist_cus(train_data, selected_idxs)
+        else:
+            kc = kCenterGreedy(train_data)
+            _ = kc.select_batch_with_budgets(selected_idxs,target_num-len(selected_idxs))
+            selected_idxs = kc.already_selected.astype("int")
+        # target_num = int(len(selected_idxs)/0.9)
         time_step_idxs_list.insert(0, np.arange(len(selected_idxs)).tolist())
 
         train_data = train_data[selected_idxs]

@@ -214,7 +214,7 @@ def hausdorff_dist(X, subset_idxs, metric="euclidean", verbose=1):
     t_e = time.time()
     if verbose>0:
         print("Calculate hausdorff distance {:.2f} for {:d}/{:d} in {:.3f} seconds...".format(hausdorff, len(subset_idxs),len(X), t_e-t_s))
-    return hausdorff_dist, round(t_e-t_s,3)
+    return hausdorff, round(t_e-t_s,3)
 
 
 def hausdorff_dist_cus(X, subset_idxs, metric="euclidean", verbose=1):
@@ -224,7 +224,7 @@ def hausdorff_dist_cus(X, subset_idxs, metric="euclidean", verbose=1):
     hausdorff = np.max(min_distances)
     t_e = time.time()
     if verbose > 0:
-        print("Calculate hausdorff distance {:.2f} for {:d}/{:d} in {:.3f} seconds...".format(hausdorff, len(subset_idxs),len(X), t_e-t_s))
+        print("Hausdorff distance {:.2f} for {:d}/{:d} in {:.3f} seconds...".format(hausdorff, len(subset_idxs),len(X), t_e-t_s))
     return hausdorff, round(t_e-t_s,3)
 
 

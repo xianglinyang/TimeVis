@@ -71,8 +71,8 @@ criterion = SingleVisLoss(umap_loss_fn, recon_loss_fn, lambd=LAMBDA)
 optimizer = torch.optim.Adam(model.parameters(), lr=.01, weight_decay=1e-5)
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=.1)
 
-edge_to, edge_from, probs, feature_vectors, attention = construct_spatial_temporal_complex_kc_dist(data_provider, MAX_HAUSDORFF, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT)
-# edge_to, edge_from, probs, feature_vectors, attention = construct_spatial_temporal_complex_kc(data_provider, LEN//10, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT)
+# edge_to, edge_from, probs, feature_vectors, attention = construct_spatial_temporal_complex_kc_dist(data_provider, MAX_HAUSDORFF, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT)
+edge_to, edge_from, probs, feature_vectors, attention = construct_spatial_temporal_complex_kc(data_provider, MAX_HAUSDORFF, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT)
 
 dataset = DataHandler(edge_to, edge_from, feature_vectors, attention)
 n_samples = int(np.sum(NUMS * probs) // 1)

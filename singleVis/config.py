@@ -9,7 +9,7 @@ dataset_config = {
         "LAMBDA":10.,
         "DOWNSAMPLING_RATE": .1,
         "L_BOUND":0.6,
-        "MAX_HAUSDORFF":0.3,
+        "MAX_HAUSDORFF":7.0,
         "training_config":{
             "EPOCH_NUM": 6,
             "TIME_STEPS": 11,
@@ -26,7 +26,7 @@ dataset_config = {
         "LAMBDA":10.,
         "DOWNSAMPLING_RATE": .1,
         "L_BOUND":0.6,
-        "MAX_HAUSDORFF":1.0,
+        "MAX_HAUSDORFF":7.0,
         "training_config":{
             "EPOCH_NUM": 6,
             "TIME_STEPS": 5,
@@ -43,7 +43,7 @@ dataset_config = {
         "LAMBDA":1.,
         "DOWNSAMPLING_RATE": .1,
         "L_BOUND":0.4,
-        "MAX_HAUSDORFF":5.0,
+        "MAX_HAUSDORFF":110.,
         "training_config":{
             "EPOCH_NUM": 6,
             "TIME_STEPS": 10,
@@ -59,7 +59,7 @@ dataset_config = {
         "LAMBDA":20.,
         "DOWNSAMPLING_RATE": .1,
         "L_BOUND":0.5,
-        "MAX_HAUSDORFF":1.5,
+        "MAX_HAUSDORFF":21.7,
         "training_config":{
             "EPOCH_NUM": 6,
             "TIME_STEPS": 10,
