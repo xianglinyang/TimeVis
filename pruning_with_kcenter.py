@@ -87,7 +87,7 @@ edge_loader = DataLoader(dataset, batch_size=1000, sampler=sampler)
 
 trainer = SingleVisTrainer(model, criterion, optimizer, lr_scheduler,edge_loader=edge_loader, DEVICE=DEVICE)
 trainer.train(PATIENT, EPOCH_NUMS)
-trainer.save(save_dir=data_provider.model_path, file_name="prune_dist_SV")
+trainer.save(save_dir=data_provider.model_path, file_name="increase_tem_SV")
 # trainer.load(file_path=os.path.join(data_provider.model_path,"SV.pth"))
 
 ########################################################################################################################
@@ -107,7 +107,7 @@ trainer.save(save_dir=data_provider.model_path, file_name="prune_dist_SV")
 ########################################################################################################################
 from singleVis.eval.evaluator import Evaluator
 evaluator = Evaluator(data_provider, trainer)
-evaluator.save_eval(n_neighbors=15, file_name="prune_dist_evaluation")
+evaluator.save_eval(n_neighbors=15, file_name="increase_tem_evaluation")
 
 
 

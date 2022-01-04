@@ -559,6 +559,7 @@ def construct_spatial_temporal_complex_kc(data_provider, dist, TIME_STEPS, NUMS,
     feature_vectors = None
     attention = None
     knn_indices = None
+    npr = None
     time_step_nums = list()
     time_step_idxs_list = list()
 
@@ -570,6 +571,13 @@ def construct_spatial_temporal_complex_kc(data_provider, dist, TIME_STEPS, NUMS,
     for t in range(TIME_STEPS, 0, -1):
         # load train data and border centers
         train_data = data_provider.train_representation(t).squeeze()
+        border_centers = data_provider.border_representation(t).squeeze()
+        border_centers = border_centers
+        if t == 1:
+            npr_t = np.zeros(len(train_data))
+        else:
+            prev_data = data_provider.train_representation(t-1).squeeze()
+            npr_t = find_neighbor_preserving_rate(prev_data,train_data, n_neighbors=15)
 
         id = IntrinsicDim(train_data)
         d = id.twonn_dimension_fast()
@@ -592,9 +600,8 @@ def construct_spatial_temporal_complex_kc(data_provider, dist, TIME_STEPS, NUMS,
         time_step_idxs_list.insert(0, np.arange(len(selected_idxs)).tolist())
 
         train_data = train_data[selected_idxs]
-        
-        border_centers = data_provider.border_representation(t).squeeze()
-        border_centers = border_centers
+        npr_t = npr_t[selected_idxs]
+        npr_t = np.concatenate((npr_t, np.zeros(len(border_centers))), axis=0)
 
         t_num = len(selected_idxs)
         b_num = len(border_centers)
@@ -618,6 +625,7 @@ def construct_spatial_temporal_complex_kc(data_provider, dist, TIME_STEPS, NUMS,
             sigmas = sigmas_t
             rhos = rhos_t
             knn_indices = knn_idxs_t
+            npr = npr_t
             time_step_nums.insert(0, (t_num, b_num))
         else:
             # every round, we need to add len(data) to edge_to(as well as edge_from) index
@@ -633,6 +641,7 @@ def construct_spatial_temporal_complex_kc(data_provider, dist, TIME_STEPS, NUMS,
             feature_vectors = np.concatenate((fitting_data, feature_vectors), axis=0)
             attention = np.concatenate((attention_t, attention), axis=0)
             knn_indices = np.concatenate((knn_idxs_t, knn_indices+increase_idx), axis=0)
+            npr = np.concatenate((npr_t, npr), axis=0)
             time_step_nums.insert(0, (t_num, b_num))
 
     # boundary points...
@@ -650,10 +659,15 @@ def construct_spatial_temporal_complex_kc(data_provider, dist, TIME_STEPS, NUMS,
     tails = tails[eliminate_idxs]
     vals = vals[eliminate_idxs]
     # increase weight of temporal edges
-    vals = vals*TEMPORAL_EDGE_WEIGHT
-
+    strenthen_neighbor = npr[heads]*2
+    print("max neighbor preserving rate is {:.2f}".format(npr.max()))
     weight = np.concatenate((weight, vals), axis=0)
+
     probs_t = vals / (vals.max() + 1e-4)
+    probs_t = probs_t*(1+strenthen_neighbor)
+    # probs_t = probs_t*TEMPORAL_EDGE_WEIGHT
+    probs_t = probs_t*2
+
     probs = np.concatenate((probs, probs_t), axis=0)
     edge_to = np.concatenate((edge_to, heads), axis=0)
     edge_from = np.concatenate((edge_from, tails), axis=0)
@@ -837,7 +851,7 @@ def find_neighbor_preserving_rate(prev_data, train_data, n_neighbors):
         n_trees=n_trees,
         n_iters=n_iters,
         max_candidates=60,
-        verbose=True
+        verbose=False
     )
     train_indices, _ = nnd.neighbor_graph
     prev_nnd = NNDescent(
@@ -847,7 +861,7 @@ def find_neighbor_preserving_rate(prev_data, train_data, n_neighbors):
         n_trees=n_trees,
         n_iters=n_iters,
         max_candidates=60,
-        verbose=True
+        verbose=False
     )
     prev_indices, _ = prev_nnd.neighbor_graph
     temporal_pres = np.zeros(len(train_data))

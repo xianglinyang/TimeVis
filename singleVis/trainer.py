@@ -83,7 +83,7 @@ class SingleVisTrainer:
 
         time_end = time.time()
         time_spend = time_end - time_start
-        print("Time spend: {:.2f}".format(time_spend))
+        print("Time spend: {:.2f} for training vis model...".format(time_spend))
 
     def load(self, file_path):
         """
