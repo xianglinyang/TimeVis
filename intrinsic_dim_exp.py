@@ -159,5 +159,5 @@ if __name__ == "__main__":
         t0 = time.time()
         d = twonn_dimension_fast(data)
         t1 = time.time()
-        num = math.pow(2*c*math.sqrt(d)/21.7, int(d))
+        num = math.pow(2*c*math.sqrt(d)/23.2, int(d))
         print("{}-th  with {:.2f} dim in {:.2f} seconds need num {:.0f}".format(i, d, t1-t0, num))
