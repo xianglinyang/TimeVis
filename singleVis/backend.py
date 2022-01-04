@@ -659,14 +659,13 @@ def construct_spatial_temporal_complex_kc(data_provider, dist, TIME_STEPS, NUMS,
     tails = tails[eliminate_idxs]
     vals = vals[eliminate_idxs]
     # increase weight of temporal edges
-    strenthen_neighbor = npr[heads]*2
-    print("max neighbor preserving rate is {:.2f}".format(npr.max()))
+    # strenthen_neighbor = npr[heads]
     weight = np.concatenate((weight, vals), axis=0)
 
     probs_t = vals / (vals.max() + 1e-4)
-    probs_t = probs_t*(1+strenthen_neighbor)
+    # probs_t = probs_t*(1+strenthen_neighbor)
     # probs_t = probs_t*TEMPORAL_EDGE_WEIGHT
-    probs_t = probs_t*2
+    # probs_t = probs_t*2
 
     probs = np.concatenate((probs, probs_t), axis=0)
     edge_to = np.concatenate((edge_to, heads), axis=0)

@@ -1,5 +1,7 @@
 import torch
 import sys
+import os
+import json
 import time
 import numpy as np
 import argparse
@@ -74,6 +76,17 @@ t0 = time.time()
 # edge_to, edge_from, probs, feature_vectors, attention = construct_spatial_temporal_complex_kc_dist(data_provider, MAX_HAUSDORFF, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT)
 edge_to, edge_from, probs, feature_vectors, attention = construct_spatial_temporal_complex_kc(data_provider, MAX_HAUSDORFF, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT)
 t1 = time.time()
+# save result
+save_dir = os.path.join(data_provider.model_path, "SV_time.json")
+if not os.path.exists(save_dir):
+    evaluation = dict()
+else:
+    f = open(save_dir, "r")
+    evaluation = json.load(f)
+    f.close()
+evaluation["complex_construction"] = round(t1-t0, 3)
+with open(save_dir, 'w') as f:
+    json.dump(evaluation, f)
 print("constructing timeVis complex in {:.1f} seconds.".format(t1-t0))
 
 dataset = DataHandler(edge_to, edge_from, feature_vectors, attention)
@@ -86,8 +99,22 @@ else:
 edge_loader = DataLoader(dataset, batch_size=1000, sampler=sampler)
 
 trainer = SingleVisTrainer(model, criterion, optimizer, lr_scheduler,edge_loader=edge_loader, DEVICE=DEVICE)
+t2=time.time()
 trainer.train(PATIENT, EPOCH_NUMS)
-trainer.save(save_dir=data_provider.model_path, file_name="increase_tem_SV")
+t3 = time.time()
+# save result
+# save result
+save_dir = os.path.join(data_provider.model_path, "SV_time.json")
+if not os.path.exists(save_dir):
+    evaluation = dict()
+else:
+    f = open(save_dir, "r")
+    evaluation = json.load(f)
+    f.close()
+evaluation["training"] = round(t3-t2, 3)
+with open(save_dir, 'w') as f:
+    json.dump(evaluation, f)
+trainer.save(save_dir=data_provider.model_path, file_name="final_SV")
 # trainer.load(file_path=os.path.join(data_provider.model_path,"SV.pth"))
 
 ########################################################################################################################
@@ -107,7 +134,7 @@ trainer.save(save_dir=data_provider.model_path, file_name="increase_tem_SV")
 ########################################################################################################################
 from singleVis.eval.evaluator import Evaluator
 evaluator = Evaluator(data_provider, trainer)
-evaluator.save_eval(n_neighbors=15, file_name="increase_tem_evaluation")
+evaluator.save_eval(n_neighbors=15, file_name="final_evaluation")
 
 
 
