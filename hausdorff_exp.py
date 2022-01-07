@@ -13,17 +13,16 @@ from singleVis.edge_dataset import DataHandler
 from singleVis.trainer import SingleVisTrainer
 from singleVis.data import DataProvider
 
-from singleVis.backend import fuzzy_complex, boundary_wise_complex, construct_step_edge_dataset, \
-    construct_temporal_edge_dataset, get_attention, construct_temporal_edge_dataset2
 import singleVis.config as config
 import argparse
 from singleVis import utils
+from singleVis import kcenter_greedy
 
 parser = argparse.ArgumentParser(description='Process hyperparameters...')
 parser.add_argument('--content_path', type=str)
 parser.add_argument('-d','--dataset', choices=['online','cifar10', 'mnist', 'fmnist'])
-parser.add_argument('-p',"--preprocess", choice=[0,1], default=0)
-parser.add_argument('-g',"--gpu_id", type=int, choice=[0,1,2,3], default=0)
+parser.add_argument('-p',"--preprocess", choices=[0,1], default=0)
+parser.add_argument('-g',"--gpu_id", type=int, choices=[0,1,2,3], default=0)
 args = parser.parse_args()
 
 CONTENT_PATH = args.content_path
@@ -56,21 +55,22 @@ classes = ("airplane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "sh
 data_provider = DataProvider(content_path, net, 1, TIME_STEPS, 1, split=-1, device=DEVICE, verbose=1)
 
 # each time step
-ratio_1 = np.arange(1,10,1)/10.
-ratio_2 = np.arange(1,10,1)/100.
-ratio = np.concatenate((ratio_2, ratio_1), axis=0)
+ratio = np.array([0.9, 0.1,0.01])
+# ratio_1 = np.arange(1,10,1)/10.
+# ratio_2 = np.arange(1,10,1)/100.
+# ratio = np.concatenate((ratio_2, ratio_1), axis=0)
 
 eval = dict()
-for stage in [1,4,7]:
+for stage in [1,5,10]:
     eval[stage] = dict()
     for r in ratio:
         eval[stage][r] = dict()
         mean_list = list()
         t = list()
-        for _ in range(10):
+        train_data = data_provider.train_representation(stage).squeeze()
+        for _ in range(1):
             selected_idxs = np.random.choice(np.arange(LEN), size=int(LEN*r), replace=False)
-            train_data = data_provider.train_representation(stage).squeeze()
-            hausdorff_, t_ = utils.hausdorff_dist(train_data, selected_idxs)
+            hausdorff_, t_ = utils.hausdorff_dist_cus(train_data, selected_idxs)
             mean_list.append(hausdorff_)
             t.append(t_)
         print("{:.2f}:{:.3f}".format(r, np.array(mean_list).mean()))
@@ -78,6 +78,13 @@ for stage in [1,4,7]:
         eval[stage][r]["std"] = np.array(mean_list).std()
         eval[stage][r]["time"] = np.array(t).mean()
         eval[stage][r]["time_std"] = np.array(t).std()
+    
+    # kc
+    selected_idxs = np.random.choice(np.arange(LEN), size=100, replace=False)
+    target_num = int(LEN*0.01)
+    kc = kcenter_greedy.kCenterGreedy(train_data)
+    _, dists = kc.select_batch_with_budgets(selected_idxs, target_num-100, return_min=True)
+    eval[stage][0.01]["kc"] = dists
 with open("hausdorff_{}.json".format(DATASET), "w") as f:
     json.dump(eval, f)
 

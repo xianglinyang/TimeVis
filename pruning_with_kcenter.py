@@ -114,27 +114,27 @@ else:
 evaluation["training"] = round(t3-t2, 3)
 with open(save_dir, 'w') as f:
     json.dump(evaluation, f)
-trainer.save(save_dir=data_provider.model_path, file_name="final_SV")
+trainer.save(save_dir=data_provider.model_path, file_name="test")
 # trainer.load(file_path=os.path.join(data_provider.model_path,"SV.pth"))
 
 ########################################################################################################################
 # visualization results
 ########################################################################################################################
-# from singleVis.visualizer import visualizer
+from singleVis.visualizer import visualizer
 
-# vis = visualizer(data_provider, trainer.model, 200, 10, classes)
-# save_dir = os.path.join(data_provider.content_path, "img")
-# if not os.path.exists(save_dir):
-#     os.mkdir(save_dir)
-# for i in range(1, TIME_STEPS+1, 1):
-#     vis.savefig(i, path=os.path.join(save_dir, "{}_{}.png".format(DATASET, i)))
+vis = visualizer(data_provider, trainer.model, 200, 10, classes)
+save_dir = os.path.join(data_provider.content_path, "img")
+if not os.path.exists(save_dir):
+    os.mkdir(save_dir)
+for i in range(1, TIME_STEPS+1, 1):
+    vis.savefig(i, path=os.path.join(save_dir, "{}_{}.png".format(DATASET, i)))
 
 ########################################################################################################################
 # evaluate
 ########################################################################################################################
 from singleVis.eval.evaluator import Evaluator
 evaluator = Evaluator(data_provider, trainer)
-evaluator.save_eval(n_neighbors=15, file_name="final_evaluation")
+evaluator.save_eval(n_neighbors=15, file_name="test_evaluation")
 
 
 

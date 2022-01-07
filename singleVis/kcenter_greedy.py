@@ -31,6 +31,7 @@ from __future__ import print_function
 
 import time
 import numpy as np
+import math
 from sklearn.metrics import pairwise_distances
 
 class kCenterGreedy(object):
@@ -68,7 +69,7 @@ class kCenterGreedy(object):
       else:
         self.min_distances = np.minimum(self.min_distances, dist)
 
-  def select_batch_with_budgets(self, already_selected, budgets):
+  def select_batch_with_budgets(self, already_selected, budgets, return_min=False):
     """
     Diversity promoting active learning method that greedily forms a batch
     to minimize the maximum distance to a cluster center among all unlabeled
@@ -101,7 +102,17 @@ class kCenterGreedy(object):
     
     self.already_selected = np.concatenate((already_selected, np.array(new_batch)))
 
+    if return_min:
+      return new_batch, self.min_distances.max()
     return new_batch
+  
+  def covering_perc(self, p):
+    """given a dist, return the covering percentage"""
+    sorted = np.sort(self.min_distances.reshape(-1))
+    return sorted[int(self.n_obs*p)]
+
+  def hausdorff(self):
+    return self.min_distances.max()
 
   def select_batch_with_distance(self, already_selected, dist):
       """
@@ -141,3 +152,46 @@ class kCenterGreedy(object):
       self.already_selected = np.concatenate((already_selected, np.array(new_batch)))
 
       return new_batch
+
+  def select_batch_with_cn(self, already_selected, r_max, d, p=0.95, return_min=False):
+    """
+    Diversity promoting active learning method that greedily forms a batch
+    to minimize the maximum distance to a cluster center among all unlabeled
+    datapoints.
+
+    Args:
+      budgets: batch size
+
+    Returns:
+      indices of points selected to minimize distance to cluster centers
+    """
+
+    print('Calculating distances...')
+    t0 = time.time()
+    self.update_distances(already_selected, only_new=False, reset_dist=True)
+    t1 = time.time()
+    print("calculating distances for {:d} points within {:.2f} seconds...".format(len(already_selected), t1 - t0))
+
+    new_batch = []
+    c = self.features.max()
+    while True:
+      ind = np.argmax(self.min_distances)
+      # New examples should not be in already selected since those points
+      # should have min_distance of zero to a cluster center.
+      assert ind not in already_selected
+
+      self.update_distances([ind], only_new=True, reset_dist=False)
+      new_batch.append(ind)
+
+      sorted = np.sort(self.min_distances.reshape(-1))
+
+      r_cover = sorted[int(self.n_obs*p)-1]
+      if r_cover/c/math.sqrt(d) < r_max:
+        break
+    print('Hausdorff distance is {:.2f} with {:d} points'.format(self.min_distances.max(), len(already_selected)+len(new_batch)))
+    
+    self.already_selected = np.concatenate((already_selected, np.array(new_batch)))
+
+    if return_min:
+      return new_batch, self.min_distances.max()
+    return new_batch

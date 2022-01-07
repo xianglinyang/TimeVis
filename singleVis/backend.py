@@ -559,40 +559,38 @@ def construct_spatial_temporal_complex_kc(data_provider, dist, TIME_STEPS, NUMS,
     feature_vectors = None
     attention = None
     knn_indices = None
-    npr = None
+    # npr = None
     time_step_nums = list()
     time_step_idxs_list = list()
 
     train_num = data_provider.train_num
-    selected_idxs = np.random.choice(np.arange(train_num), size=int(train_num * 0.02), replace=False)
-    # target_num = int(math.pow(0.9,(TIME_STEPS-1))*init_num)
+    selected_idxs = np.random.choice(np.arange(train_num), size=int(train_num * 0.001), replace=False)
+    init_num = 1500
+    target_num = int(math.pow(0.9,(TIME_STEPS))*init_num)
 
     # each time step
     for t in range(TIME_STEPS, 0, -1):
         # load train data and border centers
         train_data = data_provider.train_representation(t).squeeze()
-        border_centers = data_provider.border_representation(t).squeeze()
-        border_centers = border_centers
-        if t == 1:
-            npr_t = np.zeros(len(train_data))
-        else:
-            prev_data = data_provider.train_representation(t-1).squeeze()
-            npr_t = find_neighbor_preserving_rate(prev_data,train_data, n_neighbors=15)
+        
+        # if t == 1:
+        #     npr_t = np.zeros(len(train_data))
+        # else:
+        #     prev_data = data_provider.train_representation(t-1).squeeze()
+        #     npr_t = find_neighbor_preserving_rate(prev_data,train_data, n_neighbors=15)
 
-        id = IntrinsicDim(train_data)
-        d = id.twonn_dimension_fast()
-        c_all = np.linalg.norm(train_data, axis=1)
-        c = c_all.max()
-        target_num = int(min(math.pow(2*c*math.sqrt(d)/dist, int(d)), len(train_data)))
+        # id = IntrinsicDim(train_data)
+        # d = id.twonn_dimension_fast()
+        # c_all = np.linalg.norm(train_data, axis=1)
+        # c = c_all.mean()
+        # target_num = int(min(math.pow(2*c*math.sqrt(d)/dist, int(d)), len(train_data)//5))
+        target_num = int(target_num/0.9)
 
-        if target_num == len(train_data):
-            unselelcted_idxs = [i for i in range(len(train_data)) if i not in selected_idxs]
-            selected_idxs = np.concatenate((selected_idxs, np.array(unselelcted_idxs))).astype("int")
-            _,_ = hausdorff_dist_cus(train_data, selected_idxs)
-        elif target_num <= len(selected_idxs):
+        if target_num <= len(selected_idxs):
             selected_idxs = selected_idxs.astype("int")
             _,_ = hausdorff_dist_cus(train_data, selected_idxs)
         else:
+            # bound by 1/2
             kc = kCenterGreedy(train_data)
             _ = kc.select_batch_with_budgets(selected_idxs,target_num-len(selected_idxs))
             selected_idxs = kc.already_selected.astype("int")
@@ -600,8 +598,10 @@ def construct_spatial_temporal_complex_kc(data_provider, dist, TIME_STEPS, NUMS,
         time_step_idxs_list.insert(0, np.arange(len(selected_idxs)).tolist())
 
         train_data = train_data[selected_idxs]
-        npr_t = npr_t[selected_idxs]
-        npr_t = np.concatenate((npr_t, np.zeros(len(border_centers))), axis=0)
+        border_centers = data_provider.border_representation(t).squeeze()
+        border_centers = border_centers[:len(train_data)]
+        # npr_t = npr_t[selected_idxs]
+        # npr_t = np.concatenate((npr_t, np.zeros(len(border_centers))), axis=0)
 
         t_num = len(selected_idxs)
         b_num = len(border_centers)
@@ -625,7 +625,7 @@ def construct_spatial_temporal_complex_kc(data_provider, dist, TIME_STEPS, NUMS,
             sigmas = sigmas_t
             rhos = rhos_t
             knn_indices = knn_idxs_t
-            npr = npr_t
+            # npr = npr_t
             time_step_nums.insert(0, (t_num, b_num))
         else:
             # every round, we need to add len(data) to edge_to(as well as edge_from) index
@@ -641,7 +641,7 @@ def construct_spatial_temporal_complex_kc(data_provider, dist, TIME_STEPS, NUMS,
             feature_vectors = np.concatenate((fitting_data, feature_vectors), axis=0)
             attention = np.concatenate((attention_t, attention), axis=0)
             knn_indices = np.concatenate((knn_idxs_t, knn_indices+increase_idx), axis=0)
-            npr = np.concatenate((npr_t, npr), axis=0)
+            # npr = np.concatenate((npr_t, npr), axis=0)
             time_step_nums.insert(0, (t_num, b_num))
 
     # boundary points...
