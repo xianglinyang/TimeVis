@@ -564,8 +564,8 @@ def construct_spatial_temporal_complex_kc(data_provider, dist, TIME_STEPS, NUMS,
     time_step_idxs_list = list()
 
     train_num = data_provider.train_num
-    selected_idxs = np.random.choice(np.arange(train_num), size=int(train_num * 0.001), replace=False)
-    init_num = 1500
+    selected_idxs = np.random.choice(np.arange(train_num), size=int(train_num * 0.01), replace=False)
+    init_num = 2000
     target_num = int(math.pow(0.9,(TIME_STEPS))*init_num)
 
     # each time step
@@ -598,8 +598,13 @@ def construct_spatial_temporal_complex_kc(data_provider, dist, TIME_STEPS, NUMS,
         time_step_idxs_list.insert(0, np.arange(len(selected_idxs)).tolist())
 
         train_data = train_data[selected_idxs]
+
         border_centers = data_provider.border_representation(t).squeeze()
-        border_centers = border_centers[:len(train_data)]
+        # init_idxs = np.random.choice(np.arange(len(border_centers)), int(len(train_data)/2), replace=False)
+        # kc = kCenterGreedy(border_centers)
+        # _ = kc.select_batch_with_budgets(init_idxs,4000-len(init_idxs))
+        # b_selected_idxs = kc.already_selected.astype("int")
+        # border_centers = border_centers[b_selected_idxs]
         # npr_t = npr_t[selected_idxs]
         # npr_t = np.concatenate((npr_t, np.zeros(len(border_centers))), axis=0)
 

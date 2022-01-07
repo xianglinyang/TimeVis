@@ -5,6 +5,7 @@ import json
 import time
 import numpy as np
 import argparse
+from torch._C import device
 
 from torch.utils.data import DataLoader
 from torch.utils.data import WeightedRandomSampler
@@ -61,7 +62,9 @@ data_provider = DataProvider(content_path, net, 1, TIME_STEPS, 1, split=-1, devi
 if PREPROCESS:
     data_provider.initialize(LEN//10, l_bound=L_BOUND)
 
+# devices_ids = [0,1,2,3]
 model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256)
+# model = torch.nn.DataParallel(model, device_ids=devices_ids)
 negative_sample_rate = 5
 min_dist = .1
 _a, _b = find_ab_params(1.0, min_dist)
@@ -99,6 +102,7 @@ else:
 edge_loader = DataLoader(dataset, batch_size=1000, sampler=sampler)
 
 trainer = SingleVisTrainer(model, criterion, optimizer, lr_scheduler,edge_loader=edge_loader, DEVICE=DEVICE)
+
 t2=time.time()
 trainer.train(PATIENT, EPOCH_NUMS)
 t3 = time.time()
