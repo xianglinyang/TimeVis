@@ -130,23 +130,23 @@ if __name__ == "__main__":
     #     ratio = c/c0
 
     #     kc = kCenterGreedy(data)
-    #     _ = kc.select_batch_with_budgets(idxs_, 500)
+    #     _ = kc.select_batch_with_budgets(idxs_, 5700)
     #     haus = kc.hausdorff()
     #     idxs = kc.already_selected
-    #     print(haus, haus/ratio/d*d0)
+    #     print(haus, haus/ratio, haus/ratio/d*d0)
 
-    #     _ = kc.select_batch_with_budgets(idxs, 1200)
-    #     haus = kc.hausdorff()
-    #     idxs = kc.already_selected
-    #     print(haus, haus/ratio)
+        # _ = kc.select_batch_with_budgets(idxs, 1200)
+        # haus = kc.hausdorff()
+        # idxs = kc.already_selected
+        # print(haus, haus/ratio)
 
-    #     _ = kc.select_batch_with_budgets(idxs, 1000)
-    #     haus = kc.hausdorff()
-    #     idxs = kc.already_selected
-    #     print(haus, haus/ratio/d*d0)
+        # _ = kc.select_batch_with_budgets(idxs, 1000)
+        # haus = kc.hausdorff()
+        # idxs = kc.already_selected
+        # print(haus, haus/ratio/d*d0)
     if DATASET == "fmnist":
         # 232s
-        alpha = 1
+        alpha = .5
         beta = 1
         threshold = 0.07
     elif DATASET == "cifar10":
@@ -157,9 +157,9 @@ if __name__ == "__main__":
     else:
         # mnist
         # 208.6s
-        alpha = 0
+        alpha = .5
         beta = 1
-        threshold = 0.24
+        threshold = 0.195
 
     train_num = data_provider.train_num
     selected_idxs = np.random.choice(np.arange(train_num), size=int(train_num * 0.005), replace=False)

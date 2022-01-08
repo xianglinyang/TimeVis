@@ -615,6 +615,8 @@ def construct_spatial_temporal_complex_kc(data_provider, MAX_HAUSDORFF, ALPHA, B
         print("select {:d} points".format(len(selected_idxs)))
 
         time_step_idxs_list.insert(0, np.arange(len(selected_idxs)).tolist())
+
+        train_data = data_provider.train_representation(t).squeeze()
         train_data = train_data[selected_idxs]
         border_centers = data_provider.border_representation(t).squeeze()
 

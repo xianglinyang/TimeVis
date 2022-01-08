@@ -206,6 +206,7 @@ class DataProvider:
         except Exception as e:
             print("no test data saved for Epoch {}".format(epoch))
             test_data = None
+        # max_x = self.max_norm(epoch)
         return test_data
     
     def test_labels(self, epoch):
@@ -231,6 +232,20 @@ class DataProvider:
             print("no border points saved for Epoch {}".format(epoch))
             border_centers = None
         return border_centers
+    
+    def max_norm(self, epoch):
+        train_data_loc = os.path.join(self.model_path, "Epoch_{:d}".format(epoch), "train_data.npy")
+        index_file = os.path.join(self.model_path, "Epoch_{:d}".format(epoch), "index.json")
+        index = load_labelled_data_index(index_file)
+        try:
+            train_data = np.load(train_data_loc)
+            train_data = train_data[index]
+            max_x = np.linalg.norm(train_data, axis=1).max()
+        except Exception as e:
+            print("no train data saved for Epoch {}".format(epoch))
+            max_x = None
+        return max_x
+
 
     def prediction_function(self, epoch):
         model_location = os.path.join(self.model_path, "Epoch_{:d}".format(epoch), "subject_model.pth")
