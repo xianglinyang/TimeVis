@@ -145,17 +145,21 @@ if __name__ == "__main__":
     #     idxs = kc.already_selected
     #     print(haus, haus/ratio/d*d0)
     if DATASET == "fmnist":
+        # 232s
         alpha = 1
         beta = 1
-        threshold = 0.2
+        threshold = 0.07
     elif DATASET == "cifar10":
+        # 124s
         alpha = 0
         beta = 1
         threshold = 0.2
     else:
+        # mnist
+        # 208.6s
         alpha = 0
         beta = 1
-        threshold = 0.2
+        threshold = 0.24
 
     train_num = data_provider.train_num
     selected_idxs = np.random.choice(np.arange(train_num), size=int(train_num * 0.005), replace=False)
@@ -184,7 +188,7 @@ if __name__ == "__main__":
         print("Finish calculating normaling factor")
 
         kc = kCenterGreedy(train_data)
-        _ = kc.select_batch_with_cn(selected_idxs, threshold, c_c0, d_d0, p=1.0)
+        _ = kc.select_batch_with_cn(selected_idxs, threshold, c_c0, d_d0, p=0.95)
         selected_idxs = kc.already_selected.astype("int")
         print("select {:d} points".format(len(selected_idxs)))
     t1 = time.time()

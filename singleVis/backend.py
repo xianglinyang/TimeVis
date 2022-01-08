@@ -564,7 +564,7 @@ def construct_spatial_temporal_complex_prune(data_provider, TIME_STEPS, NUMS, TE
 
 
 # construct spatio-temporal complex and get edges
-def construct_spatial_temporal_complex_kc(data_provider, threshold, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT):
+def construct_spatial_temporal_complex_kc(data_provider, MAX_HAUSDORFF, ALPHA, BETA, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT):
     # dummy input
     edge_to = None
     edge_from = None
@@ -579,52 +579,44 @@ def construct_spatial_temporal_complex_kc(data_provider, threshold, TIME_STEPS, 
     time_step_nums = list()
     time_step_idxs_list = list()
 
+    # train_num = data_provider.train_num
+    # selected_idxs = np.random.choice(np.arange(train_num), size=int(train_num * 0.01), replace=False)
+    # init_num = 2000
+    # target_num = int(math.pow(0.9,(TIME_STEPS))*init_num)
+
     train_num = data_provider.train_num
-    selected_idxs = np.random.choice(np.arange(train_num), size=int(train_num * 0.01), replace=False)
-    init_num = 2000
-    target_num = int(math.pow(0.9,(TIME_STEPS))*init_num)
+    selected_idxs = np.random.choice(np.arange(train_num), size=int(train_num * 0.005), replace=False)
+
+    baseline_data = data_provider.train_representation(TIME_STEPS)
+    max_x = np.linalg.norm(baseline_data, axis=1).max()
+    baseline_data = baseline_data/max_x
+    
+    c0,d0,_ = get_unit(baseline_data)
 
     # each time step
     for t in range(TIME_STEPS, 0, -1):
+        print("=================+++={:d}=+++================".format(t))
         # load train data and border centers
         train_data = data_provider.train_representation(t).squeeze()
+
+        # normalize data by max ||x||_2
         max_x = np.linalg.norm(train_data, axis=1).max()
         train_data = train_data/max_x
-        
-        # if t == 1:
-        #     npr_t = np.zeros(len(train_data))
-        # else:
-        #     prev_data = data_provider.train_representation(t-1).squeeze()
-        #     npr_t = find_neighbor_preserving_rate(prev_data,train_data, n_neighbors=15)
 
-        # id = IntrinsicDim(train_data)
-        # d = id.twonn_dimension_fast()
-        # c_all = np.linalg.norm(train_data, axis=1)
-        # c = c_all.mean()
-        # target_num = int(min(math.pow(2*c*math.sqrt(d)/dist, int(d)), len(train_data)//5))
-        target_num = int(target_num/0.9)
+        # get normalization parameters for different epochs
+        c,d,_ = get_unit(train_data)
+        c_c0 = math.pow(c/c0, BETA)
+        d_d0 = math.pow(d/d0, ALPHA)
+        print("Finish calculating normaling factor")
 
-        if target_num <= len(selected_idxs):
-            selected_idxs = selected_idxs.astype("int")
-            _,_ = hausdorff_dist_cus(train_data, selected_idxs)
-        else:
-            # bound by 1/2
-            kc = kCenterGreedy(train_data)
-            _ = kc.select_batch_with_budgets(selected_idxs,target_num-len(selected_idxs))
-            selected_idxs = kc.already_selected.astype("int")
-        # target_num = int(len(selected_idxs)/0.9)
+        kc = kCenterGreedy(train_data)
+        _ = kc.select_batch_with_cn(selected_idxs, MAX_HAUSDORFF, c_c0, d_d0, p=0.95)
+        selected_idxs = kc.already_selected.astype("int")
+        print("select {:d} points".format(len(selected_idxs)))
+
         time_step_idxs_list.insert(0, np.arange(len(selected_idxs)).tolist())
-
         train_data = train_data[selected_idxs]
-
         border_centers = data_provider.border_representation(t).squeeze()
-        # init_idxs = np.random.choice(np.arange(len(border_centers)), int(len(train_data)/2), replace=False)
-        # kc = kCenterGreedy(border_centers)
-        # _ = kc.select_batch_with_budgets(init_idxs,4000-len(init_idxs))
-        # b_selected_idxs = kc.already_selected.astype("int")
-        # border_centers = border_centers[b_selected_idxs]
-        # npr_t = npr_t[selected_idxs]
-        # npr_t = np.concatenate((npr_t, np.zeros(len(border_centers))), axis=0)
 
         t_num = len(selected_idxs)
         b_num = len(border_centers)

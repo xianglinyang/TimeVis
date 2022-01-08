@@ -47,7 +47,7 @@ dataset_config = {
         "LAMBDA":1.,
         "DOWNSAMPLING_RATE": .1,
         "L_BOUND":0.4,
-        "MAX_HAUSDORFF":0.238,
+        "MAX_HAUSDORFF":0.24,
         "ALPHA":0,
         "BETA":1,
         "training_config":{
