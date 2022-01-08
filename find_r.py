@@ -59,6 +59,19 @@ def twonn_dimension_fast(data):
     d = np.linalg.lstsq(np.vstack([x, np.zeros(len(x))]).T, y, rcond=None)[0][0]
     return d
 
+def get_unit(data, init_num=200, adding_num=100):
+    t0 = time.time()
+    l = len(data)
+    idxs = np.random.choice(np.arange(l), size=init_num, replace=False)
+    _,_ = hausdorff_dist_cus(data, idxs)
+    kc = kCenterGreedy(data)
+    d0 = twonn_dimension_fast(data)
+    _ = kc.select_batch_with_budgets(idxs, adding_num)
+    c0 = kc.hausdorff()
+    t1 = time.time()
+    return c0, d0, "{:.1f}".format(t1-t0)
+    
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Process hyperparameters...')
@@ -98,45 +111,47 @@ if __name__ == "__main__":
 
     # init with 100,200,300
     # adding 100,200 points to get a initial result
+
+    # init with 200, adding 100 points
+    # idxs = np.random.choice(np.arange(LEN), size=200, replace=False)
+    data = data_provider.train_representation(TIME_STEPS)
+    max_x = np.linalg.norm(data, axis=1).max()
+    data = data/max_x
+    # _,_ = hausdorff_dist_cus(data, idxs)
+    # kc = kCenterGreedy(data)
+    # d0 = twonn_dimension_fast(data)
+    # _ = kc.select_batch_with_budgets(idxs,100)
+    # haus = kc.hausdorff()
+    # c0 = haus
+    c0, d0, t0 = get_unit(data)
+    print("find ratio in {} seconds".format(t0))
     
-    for i in [TIME_STEPS, 5,4,3,2,1]:
-        print("=========+++++++++++===={:d}====+++++++++============".format(i))
-        for start in [100,200,300]:
-            
-            print("=============start {:d}================".format(start))
-            t0 = time.time()
-            idxs_ = np.random.choice(np.arange(LEN), size=start, replace=False)
-            data = data_provider.train_representation(TIME_STEPS)
-            max_x = np.linalg.norm(data, axis=1).max()
-            data = data/max_x
-            _,_ = hausdorff_dist_cus(data, idxs_)
-            kc = kCenterGreedy(data)
-            d0 = twonn_dimension_fast(data)
-            _ = kc.select_batch_with_budgets(idxs_,100)
-            haus = kc.hausdorff()
-            c0 = haus
-            t1 = time.time()
-            print("find ratio in {:.1f} seconds".format(t1-t0))
+    idxs_ = np.random.choice(np.arange(LEN), size=300, replace=False)
+    for i in range(TIME_STEPS, 0, -1):
+        print("=========================={:d}==========================".format(i))
+        data = data_provider.train_representation(i)
+        max_x = np.linalg.norm(data, axis=1).max()
+        data = data/max_x
+        c, d, t = get_unit(data)
+        print(c/c0, d/d0)
+        ratio = c/c0
 
-            data = data_provider.train_representation(i)
-            max_x = np.linalg.norm(data, axis=1).max()
-            data = data/max_x
-            _,_ = hausdorff_dist_cus(data, idxs_)
-            d = twonn_dimension_fast(data)
-            kc = kCenterGreedy(data)
+        kc = kCenterGreedy(data)
+        _ = kc.select_batch_with_budgets(idxs_, 500)
+        haus = kc.hausdorff()
+        idxs = kc.already_selected
+        print(haus, haus/ratio/d*d0)
 
-            t0 = time.time()
-            _ = kc.select_batch_with_budgets(idxs_, 50)
-            haus = kc.hausdorff()
-            print(haus,haus/c0, d/d0)
-            t1 = time.time()
-            print("add 50 points takes {:.1f} seconds".format(t1-t0))
+        _ = kc.select_batch_with_budgets(idxs, 1200)
+        haus = kc.hausdorff()
+        idxs = kc.already_selected
+        print(haus, haus/ratio)
 
-            idxs = kc.already_selected
-            _ = kc.select_batch_with_budgets(idxs, 100)
-            haus = kc.hausdorff()
-            print(haus,haus/c0, d/d0)
-            
-            t1= time.time()
-            print("add 150 points takes {:.1f} seconds".format(t1-t0))
+        _ = kc.select_batch_with_budgets(idxs, 1000)
+        haus = kc.hausdorff()
+        idxs = kc.already_selected
+        print(haus, haus/ratio/d*d0)
+
+
+
 
