@@ -572,6 +572,8 @@ def construct_spatial_temporal_complex_kc(data_provider, dist, TIME_STEPS, NUMS,
     for t in range(TIME_STEPS, 0, -1):
         # load train data and border centers
         train_data = data_provider.train_representation(t).squeeze()
+        max_x = np.linalg.norm(train_data, axis=1).max()
+        train_data = train_data/max_x
         
         # if t == 1:
         #     npr_t = np.zeros(len(train_data))

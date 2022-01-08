@@ -96,50 +96,47 @@ if __name__ == "__main__":
     classes = ("airplane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck")
     data_provider = DataProvider(content_path, net, 1, TIME_STEPS, 1, split=-1, device=DEVICE, verbose=1)
 
-    idxs_ = np.random.choice(np.arange(LEN), size=300, replace=False)
-
-    data = data_provider.train_representation(TIME_STEPS)
-    max_x = np.linalg.norm(data, axis=1).max()
-    data = data/max_x
-
-    kc = kCenterGreedy(data)
-    d0 = twonn_dimension_fast(data)
-    _ = kc.select_batch_with_budgets(idxs_,100)
-    all_idxs = kc.already_selected
-    haus = kc.hausdorff()
-    c0 = haus
-
+    # init with 100,200,300
+    # adding 100,200 points to get a initial result
     
     for i in [TIME_STEPS, 5,4,3,2,1]:
-        t0 = time.time()
-        print("============={:d}================".format(i))
-        data = data_provider.train_representation(i)
-        max_x = np.linalg.norm(data, axis=1).max()
-        data = data/max_x
-        d = twonn_dimension_fast(data)
-        kc = kCenterGreedy(data)
-        # _ = kc.select_batch_with_cn(idxs,0.1, p=0.95)
+        print("=========+++++++++++===={:d}====+++++++++============".format(i))
+        for start in [100,200,300]:
+            
+            print("=============start {:d}================".format(start))
+            t0 = time.time()
+            idxs_ = np.random.choice(np.arange(LEN), size=start, replace=False)
+            data = data_provider.train_representation(TIME_STEPS)
+            max_x = np.linalg.norm(data, axis=1).max()
+            data = data/max_x
+            _,_ = hausdorff_dist_cus(data, idxs_)
+            kc = kCenterGreedy(data)
+            d0 = twonn_dimension_fast(data)
+            _ = kc.select_batch_with_budgets(idxs_,100)
+            haus = kc.hausdorff()
+            c0 = haus
+            t1 = time.time()
+            print("find ratio in {:.1f} seconds".format(t1-t0))
 
-        _ = kc.select_batch_with_budgets(idxs_, 100)
-        haus = kc.hausdorff()
-        print(haus,haus/c0, d/d0)
-        idxs = kc.already_selected
-        ratio = haus/c0
-        _ = kc.select_batch_with_budgets(idxs, 600)
-        haus = kc.hausdorff()
-        print(haus,haus/ratio)
-        idxs = kc.already_selected
-        _ = kc.select_batch_with_budgets(idxs, 1000)
-        haus = kc.hausdorff()
-        print(haus,haus/ratio)
-        idxs = kc.already_selected
-        _ = kc.select_batch_with_budgets(idxs, 1000)
-        haus = kc.hausdorff()
-        print(haus,haus/ratio)
-        # _ = kc.select_batch_with_cn(idxs, 0.1 , d_0, p=.80)
-        # # _ = kc.select_batch_with_cn(idxs, 5.5*c*math.pow(d/d_0,(d/d_0)), p=0.95)
-        # # new_batch = kc.select_batch_with_cn(idxs, 0.04/d)
-        
-        t1= time.time()
-        print(t1-t0)
+            data = data_provider.train_representation(i)
+            max_x = np.linalg.norm(data, axis=1).max()
+            data = data/max_x
+            _,_ = hausdorff_dist_cus(data, idxs_)
+            d = twonn_dimension_fast(data)
+            kc = kCenterGreedy(data)
+
+            t0 = time.time()
+            _ = kc.select_batch_with_budgets(idxs_, 50)
+            haus = kc.hausdorff()
+            print(haus,haus/c0, d/d0)
+            t1 = time.time()
+            print("add 50 points takes {:.1f} seconds".format(t1-t0))
+
+            idxs = kc.already_selected
+            _ = kc.select_batch_with_budgets(idxs, 100)
+            haus = kc.hausdorff()
+            print(haus,haus/c0, d/d0)
+            
+            t1= time.time()
+            print("add 150 points takes {:.1f} seconds".format(t1-t0))
 
