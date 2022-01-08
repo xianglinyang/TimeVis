@@ -114,46 +114,8 @@ class kCenterGreedy(object):
   def hausdorff(self):
     return self.min_distances.max()
 
-  def select_batch_with_distance(self, already_selected, dist):
-      """
-      Diversity promoting active learning method that greedily forms a batch
-      to minimize the maximum distance to a cluster center among all unlabeled
-      datapoints.
 
-      Args:
-        budgets: batch size
-
-      Returns:
-        indices of points selected to minimize distance to cluster centers
-      """
-
-      print('Calculating distances...')
-      t0 = time.time()
-      self.update_distances(already_selected, only_new=False, reset_dist=True)
-      t1 = time.time()
-      print("calculating distances for {:d} points within {:.2f} seconds...".format(len(already_selected), t1 - t0))
-
-      new_batch = []
-
-      while True:
-        ind = np.argmax(self.min_distances)
-        curr_min = self.min_distances[ind]
-        # New examples should not be in already selected since those points
-        # should have min_distance of zero to a cluster center.
-        assert ind not in already_selected
-
-        self.update_distances([ind], only_new=True, reset_dist=False)
-        new_batch.append(ind)
-        if curr_min<dist:
-            break
-      print('Hausdorff distance is {:.2f} with {:d} points'.format(self.min_distances.max(), len(already_selected)+len(new_batch)))
-      
-      # self.already_selected = already_selected.extend(new_batch)
-      self.already_selected = np.concatenate((already_selected, np.array(new_batch)))
-
-      return new_batch
-
-  def select_batch_with_cn(self, already_selected, r_max, d, p=0.95, return_min=False):
+  def select_batch_with_cn(self, already_selected, r_max, c_c0, d_d0, p=0.95, return_min=False):
     """
     Diversity promoting active learning method that greedily forms a batch
     to minimize the maximum distance to a cluster center among all unlabeled
@@ -173,9 +135,11 @@ class kCenterGreedy(object):
     print("calculating distances for {:d} points within {:.2f} seconds...".format(len(already_selected), t1 - t0))
 
     new_batch = []
-    c = self.features.max()
     while True:
       ind = np.argmax(self.min_distances)
+      r_cover = self.min_distances[ind][0]
+      if r_cover/c_c0/d_d0 < r_max:
+        break
       # New examples should not be in already selected since those points
       # should have min_distance of zero to a cluster center.
       assert ind not in already_selected
@@ -183,12 +147,10 @@ class kCenterGreedy(object):
       self.update_distances([ind], only_new=True, reset_dist=False)
       new_batch.append(ind)
 
-      sorted = np.sort(self.min_distances.reshape(-1))
-
-      r_cover = sorted[int(self.n_obs*p)-1]
-      if r_cover/c/math.sqrt(d) < r_max:
-        break
-    print('Hausdorff distance is {:.2f} with {:d} points'.format(self.min_distances.max(), len(already_selected)+len(new_batch)))
+      # sorted = np.sort(self.min_distances.reshape(-1))
+      # r_cover = sorted[int(self.n_obs*p)-1]
+      
+    print('Hausdorff distance is {:.2f} with {:d} points'.format(r_cover, len(already_selected)+len(new_batch)))
     
     self.already_selected = np.concatenate((already_selected, np.array(new_batch)))
 

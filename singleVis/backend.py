@@ -162,6 +162,22 @@ def convert_distance_to_probability(distances, a=1.0, b=1.0):
     """convert distance to student-t distribution probability in low-dimensional space"""
     return 1.0 / (1.0 + a * torch.pow(distances, 2 * b))
 
+def get_unit(data, init_num=200, adding_num=100):
+    t0 = time.time()
+    l = len(data)
+    idxs = np.random.choice(np.arange(l), size=init_num, replace=False)
+    # _,_ = hausdorff_dist_cus(data, idxs)
+
+    id = IntrinsicDim(data)
+    d0 = id.twonn_dimension_fast()
+    # d0 = twonn_dimension_fast(data)
+
+    kc = kCenterGreedy(data)
+    _ = kc.select_batch_with_budgets(idxs, adding_num)
+    c0 = kc.hausdorff()
+    t1 = time.time()
+    return c0, d0, "{:.1f}".format(t1-t0)
+
 
 def compute_cross_entropy(
         probabilities_graph, probabilities_distance, EPS=1e-4, repulsion_strength=1.0
@@ -548,7 +564,7 @@ def construct_spatial_temporal_complex_prune(data_provider, TIME_STEPS, NUMS, TE
 
 
 # construct spatio-temporal complex and get edges
-def construct_spatial_temporal_complex_kc(data_provider, dist, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT):
+def construct_spatial_temporal_complex_kc(data_provider, threshold, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT):
     # dummy input
     edge_to = None
     edge_from = None

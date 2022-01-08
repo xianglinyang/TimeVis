@@ -63,7 +63,7 @@ def get_unit(data, init_num=200, adding_num=100):
     t0 = time.time()
     l = len(data)
     idxs = np.random.choice(np.arange(l), size=init_num, replace=False)
-    _,_ = hausdorff_dist_cus(data, idxs)
+    # _,_ = hausdorff_dist_cus(data, idxs)
     kc = kCenterGreedy(data)
     d0 = twonn_dimension_fast(data)
     _ = kc.select_batch_with_budgets(idxs, adding_num)
@@ -113,44 +113,82 @@ if __name__ == "__main__":
     # adding 100,200 points to get a initial result
 
     # init with 200, adding 100 points
-    # idxs = np.random.choice(np.arange(LEN), size=200, replace=False)
-    data = data_provider.train_representation(TIME_STEPS)
-    max_x = np.linalg.norm(data, axis=1).max()
-    data = data/max_x
-    # _,_ = hausdorff_dist_cus(data, idxs)
-    # kc = kCenterGreedy(data)
-    # d0 = twonn_dimension_fast(data)
-    # _ = kc.select_batch_with_budgets(idxs,100)
-    # haus = kc.hausdorff()
-    # c0 = haus
-    c0, d0, t0 = get_unit(data)
-    print("find ratio in {} seconds".format(t0))
+    # data = data_provider.train_representation(TIME_STEPS)
+    # max_x = np.linalg.norm(data, axis=1).max()
+    # data = data/max_x
+    # c0, d0, t0 = get_unit(data)
+    # print("find ratio in {} seconds".format(t0))
     
-    idxs_ = np.random.choice(np.arange(LEN), size=300, replace=False)
-    for i in range(TIME_STEPS, 0, -1):
-        print("=========================={:d}==========================".format(i))
-        data = data_provider.train_representation(i)
-        max_x = np.linalg.norm(data, axis=1).max()
-        data = data/max_x
-        c, d, t = get_unit(data)
-        print(c/c0, d/d0)
-        ratio = c/c0
+    # idxs_ = np.random.choice(np.arange(LEN), size=300, replace=False)
+    # for i in range(TIME_STEPS, 0, -1):
+    #     print("=========================={:d}==========================".format(i))
+    #     data = data_provider.train_representation(i)
+    #     max_x = np.linalg.norm(data, axis=1).max()
+    #     data = data/max_x
+    #     c, d, t = get_unit(data)
+    #     print(c/c0, d/d0)
+    #     ratio = c/c0
 
-        kc = kCenterGreedy(data)
-        _ = kc.select_batch_with_budgets(idxs_, 500)
-        haus = kc.hausdorff()
-        idxs = kc.already_selected
-        print(haus, haus/ratio/d*d0)
+    #     kc = kCenterGreedy(data)
+    #     _ = kc.select_batch_with_budgets(idxs_, 500)
+    #     haus = kc.hausdorff()
+    #     idxs = kc.already_selected
+    #     print(haus, haus/ratio/d*d0)
 
-        _ = kc.select_batch_with_budgets(idxs, 1200)
-        haus = kc.hausdorff()
-        idxs = kc.already_selected
-        print(haus, haus/ratio)
+    #     _ = kc.select_batch_with_budgets(idxs, 1200)
+    #     haus = kc.hausdorff()
+    #     idxs = kc.already_selected
+    #     print(haus, haus/ratio)
 
-        _ = kc.select_batch_with_budgets(idxs, 1000)
-        haus = kc.hausdorff()
-        idxs = kc.already_selected
-        print(haus, haus/ratio/d*d0)
+    #     _ = kc.select_batch_with_budgets(idxs, 1000)
+    #     haus = kc.hausdorff()
+    #     idxs = kc.already_selected
+    #     print(haus, haus/ratio/d*d0)
+    if DATASET == "fmnist":
+        alpha = 1
+        beta = 1
+        threshold = 0.2
+    elif DATASET == "cifar10":
+        alpha = 0
+        beta = 1
+        threshold = 0.2
+    else:
+        alpha = 0
+        beta = 1
+        threshold = 0.2
+
+    train_num = data_provider.train_num
+    selected_idxs = np.random.choice(np.arange(train_num), size=int(train_num * 0.005), replace=False)
+
+    baseline_data = data_provider.train_representation(TIME_STEPS)
+    max_x = np.linalg.norm(baseline_data, axis=1).max()
+    baseline_data = baseline_data/max_x
+    
+    c0,d0,_ = get_unit(baseline_data)
+
+    # each time step
+    t0 = time.time()
+    for t in range(TIME_STEPS, 0, -1):
+        print("================{:d}=================".format(t))
+        # load train data and border centers
+        train_data = data_provider.train_representation(t).squeeze()
+
+        # normalize data by max ||x||_2
+        max_x = np.linalg.norm(train_data, axis=1).max()
+        train_data = train_data/max_x
+
+        # get normalization parameters for different epochs
+        c,d,_ = get_unit(train_data)
+        c_c0 = math.pow(c/c0, beta)
+        d_d0 = math.pow(d/d0, alpha)
+        print("Finish calculating normaling factor")
+
+        kc = kCenterGreedy(train_data)
+        _ = kc.select_batch_with_cn(selected_idxs, threshold, c_c0, d_d0, p=1.0)
+        selected_idxs = kc.already_selected.astype("int")
+        print("select {:d} points".format(len(selected_idxs)))
+    t1 = time.time()
+    print("Selecting points takes {:.1f} seconds".format(t1-t0))
 
 
 
