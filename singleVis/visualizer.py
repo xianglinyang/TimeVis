@@ -103,7 +103,7 @@ class visualizer:
         mesh_preds = self.data_provider.get_pred(epoch, grid_samples)
         mesh_preds = mesh_preds + 1e-8
 
-        sort_preds = np.sort(mesh_preds)
+        sort_preds = np.sort(mesh_preds, axis=1)
         diff = (sort_preds[:, -1] - sort_preds[:, -2]) / (sort_preds[:, -1] - sort_preds[:, 0])
         border = np.zeros(len(diff), dtype=np.uint8) + 0.05
         border[diff < 0.15] = 1

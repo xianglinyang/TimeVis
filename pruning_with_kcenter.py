@@ -41,6 +41,7 @@ L_BOUND = config.dataset_config[DATASET]["L_BOUND"]
 MAX_HAUSDORFF = config.dataset_config[DATASET]["MAX_HAUSDORFF"]
 ALPHA = config.dataset_config[DATASET]["ALPHA"]
 BETA = config.dataset_config[DATASET]["BETA"]
+INIT_NUM = config.dataset_config[DATASET]["INIT_NUM"]
 
 # define hyperparameters
 
@@ -79,10 +80,10 @@ lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=.1)
 
 t0 = time.time()
 # edge_to, edge_from, probs, feature_vectors, attention = construct_spatial_temporal_complex_kc_dist(data_provider, MAX_HAUSDORFF, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT)
-edge_to, edge_from, probs, feature_vectors, attention = construct_spatial_temporal_complex_kc(data_provider, MAX_HAUSDORFF, ALPHA, BETA, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT)
+edge_to, edge_from, probs, feature_vectors, attention = construct_spatial_temporal_complex_kc(data_provider, INIT_NUM, MAX_HAUSDORFF, ALPHA, BETA, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT)
 t1 = time.time()
 # save result
-save_dir = os.path.join(data_provider.model_path, "SV_time.json")
+save_dir = os.path.join(data_provider.model_path, "SV_time_test.json")
 if not os.path.exists(save_dir):
     evaluation = dict()
 else:

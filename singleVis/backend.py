@@ -564,7 +564,7 @@ def construct_spatial_temporal_complex_prune(data_provider, TIME_STEPS, NUMS, TE
 
 
 # construct spatio-temporal complex and get edges
-def construct_spatial_temporal_complex_kc(data_provider, MAX_HAUSDORFF, ALPHA, BETA, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT):
+def construct_spatial_temporal_complex_kc(data_provider, init_num, MAX_HAUSDORFF, ALPHA, BETA, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT):
     # dummy input
     edge_to = None
     edge_from = None
@@ -585,7 +585,7 @@ def construct_spatial_temporal_complex_kc(data_provider, MAX_HAUSDORFF, ALPHA, B
     # target_num = int(math.pow(0.9,(TIME_STEPS))*init_num)
 
     train_num = data_provider.train_num
-    selected_idxs = np.random.choice(np.arange(train_num), size=int(train_num * 0.005), replace=False)
+    selected_idxs = np.random.choice(np.arange(train_num), size=init_num, replace=False)
 
     baseline_data = data_provider.train_representation(TIME_STEPS)
     max_x = np.linalg.norm(baseline_data, axis=1).max()

@@ -157,12 +157,12 @@ if __name__ == "__main__":
     else:
         # mnist
         # 208.6s
-        alpha = .5
+        alpha = 1.5#1.5
         beta = 1
-        threshold = 0.195
+        threshold = 0.27
 
     train_num = data_provider.train_num
-    selected_idxs = np.random.choice(np.arange(train_num), size=int(train_num * 0.005), replace=False)
+    selected_idxs = np.random.choice(np.arange(train_num), size=500, replace=False)
 
     baseline_data = data_provider.train_representation(TIME_STEPS)
     max_x = np.linalg.norm(baseline_data, axis=1).max()
@@ -193,7 +193,4 @@ if __name__ == "__main__":
         print("select {:d} points".format(len(selected_idxs)))
     t1 = time.time()
     print("Selecting points takes {:.1f} seconds".format(t1-t0))
-
-
-
 

@@ -227,7 +227,8 @@ class Evaluator:
         evaluation["ppr_test"] = dict()
 
         # for epoch in range(self.data_provider.s, self.data_provider.e+1, self.data_provider.p):
-        for epoch in [self.data_provider.s, int((self.data_provider.s+self.data_provider.e)/2), self.data_provider.e]:
+        # for epoch in [self.data_provider.s, int((self.data_provider.s+self.data_provider.e)/2), self.data_provider.e]:
+        for epoch in [1,4,10]:
 
             evaluation[n_key]["nn_train"][epoch] = self.eval_nn_train(epoch, n_neighbors)
             evaluation[n_key]["nn_test"][epoch] = self.eval_nn_test(epoch, n_neighbors)
