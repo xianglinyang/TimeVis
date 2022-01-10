@@ -146,23 +146,29 @@ if __name__ == "__main__":
         # print(haus, haus/ratio/d*d0)
     if DATASET == "fmnist":
         # 232s
-        alpha = .5
-        beta = 1
-        threshold = 0.07
+        # alpha = 2
+        # beta = 1.3
+        # threshold = 0.06
+        alpha = 2
+        beta = 1.3
+        threshold = 0.06
     elif DATASET == "cifar10":
         # 124s
-        alpha = 0
-        beta = 1
-        threshold = 0.2
+        # alpha = 0
+        # beta = .1
+        # threshold = 0.2
+        alpha = 0.
+        beta = .1
+        threshold = 0.18
     else:
         # mnist
         # 208.6s
-        alpha = 1.5#1.5
+        alpha = 1.#1.5
         beta = 1
-        threshold = 0.27
+        threshold = 0.25
 
     train_num = data_provider.train_num
-    selected_idxs = np.random.choice(np.arange(train_num), size=500, replace=False)
+    selected_idxs = np.random.choice(np.arange(train_num), size=300, replace=False)
 
     baseline_data = data_provider.train_representation(TIME_STEPS)
     max_x = np.linalg.norm(baseline_data, axis=1).max()

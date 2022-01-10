@@ -11,7 +11,7 @@ dataset_config = {
         "L_BOUND":0.6,
         "MAX_HAUSDORFF":0.2,
         "ALPHA":0,
-        "BETA":.8,
+        "BETA":.1,
         "INIT_NUM":300,
         "training_config":{
             "EPOCH_NUM": 6,
@@ -68,10 +68,10 @@ dataset_config = {
         "LAMBDA":20.,
         "DOWNSAMPLING_RATE": .1,
         "L_BOUND":0.5,
-        "MAX_HAUSDORFF":.07,
-        "ALPHA":.5,
-        "BETA":1.,
-        "INIT_NUM":400,
+        "MAX_HAUSDORFF":.06,
+        "ALPHA":2,
+        "BETA":1.3,
+        "INIT_NUM":300,
         "training_config":{
             "EPOCH_NUM": 6,
             "TIME_STEPS": 10,
