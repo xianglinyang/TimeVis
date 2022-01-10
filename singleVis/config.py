@@ -11,7 +11,7 @@ dataset_config = {
         "L_BOUND":0.6,
         "MAX_HAUSDORFF":0.2,
         "ALPHA":0,
-        "BETA":1,
+        "BETA":.8,
         "INIT_NUM":300,
         "training_config":{
             "EPOCH_NUM": 6,
