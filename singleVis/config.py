@@ -52,7 +52,7 @@ dataset_config = {
         "MAX_HAUSDORFF":0.25,
         "ALPHA":1,
         "BETA":1,
-        "INIT_NUM":500,
+        "INIT_NUM":300,
         "training_config":{
             "EPOCH_NUM": 6,
             "TIME_STEPS": 10,
