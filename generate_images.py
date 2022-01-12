@@ -17,21 +17,27 @@ import argparse
 parser = argparse.ArgumentParser(description='Process hyperparameters...')
 parser.add_argument('--content_path', type=str)
 parser.add_argument('-d','--dataset', choices=['online','cifar10', 'mnist', 'fmnist'])
-parser.add_argument('-p',"--preprocess", choice=[0,1], default=0)
+parser.add_argument('-p',"--preprocess", choices=[0,1], default=0)
+parser.add_argument('-g',"--gpu_id", type=int, choices=[0,1,2,3], default=0)
 args = parser.parse_args()
 
 CONTENT_PATH = args.content_path
 DATASET = args.dataset
 PREPROCESS = args.preprocess
+GPU_ID = args.gpu_id
 
 LEN = config.dataset_config[DATASET]["TRAINING_LEN"]
 LAMBDA = config.dataset_config[DATASET]["LAMBDA"]
 DOWNSAMPLING_RATE = config.dataset_config[DATASET]["DOWNSAMPLING_RATE"]
 L_BOUND = config.dataset_config[DATASET]["L_BOUND"]
+MAX_HAUSDORFF = config.dataset_config[DATASET]["MAX_HAUSDORFF"]
+ALPHA = config.dataset_config[DATASET]["ALPHA"]
+BETA = config.dataset_config[DATASET]["BETA"]
+INIT_NUM = config.dataset_config[DATASET]["INIT_NUM"]
 
 # define hyperparameters
 
-DEVICE = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda:{:d}".format(GPU_ID) if torch.cuda.is_available() else "cpu")
 EPOCH_NUMS = config.dataset_config[DATASET]["training_config"]["EPOCH_NUM"]
 TIME_STEPS = config.dataset_config[DATASET]["training_config"]["TIME_STEPS"]
 TEMPORAL_PERSISTENT = config.dataset_config[DATASET]["training_config"]["TEMPORAL_PERSISTENT"]
@@ -56,8 +62,8 @@ criterion = SingleVisLoss(umap_loss_fn, recon_loss_fn, lambd=LAMBDA)
 optimizer = torch.optim.Adam(model.parameters(), lr=.01, weight_decay=1e-5)
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=.1)
 
-trainer = SingleVisTrainer(model, criterion=None, optimizer=None, lr_scheduler=None, edge_loader=None, DEVICE=DEVICE)
-trainer.load(file_path=os.path.join(data_provider.model_path,"SV.pth"))
+trainer = SingleVisTrainer(model, criterion=criterion, optimizer=optimizer, lr_scheduler=lr_scheduler, edge_loader=None, DEVICE=DEVICE)
+trainer.load(file_path=os.path.join(data_provider.model_path,"test.pth"))
 
 ########################################################################################################################
 # visualization results
@@ -82,4 +88,6 @@ for i in range(1, TIME_STEPS+1, 1):
 ########################################################################################################################
 from singleVis.eval.evaluator import Evaluator
 evaluator = Evaluator(data_provider, trainer)
-evaluator.save_eval(n_neighbors=15, file_name="evaluation")
+evaluator.save_eval(n_neighbors=15, file_name="test_evaluation")
+# evaluator.eval_temporal_md_train(15)
+# evaluator.eval_temporal_md_test(15)
