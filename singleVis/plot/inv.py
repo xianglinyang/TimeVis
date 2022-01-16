@@ -13,14 +13,14 @@ def main():
     selected_epochs = [1,4,10]
     # k_neighbors = [10, 15, 20]
     k_neighbors = [15]
-    col = np.array(["dataset", "method", "type", "hue", "k", "period", "eval"])
+    col = np.array(["dataset", "method", "type", "hue", "period", "eval"])
     df = pd.DataFrame({}, columns=col)
 
     for i in range(3): # dataset
         dataset = datasets[i]
         data = np.array([])
         # load data from evaluation.json
-        content_path = "E:\\DVI_exp_data\\resnet18_{}".format(dataset)
+        content_path = "/home/xianglin/projects/DVI_data/TemporalExp/resnet18_{}".format(dataset)
         for epoch_id in range(3):
             epoch = selected_epochs[epoch_id]
             eval_path = os.path.join(content_path, "Model", "Epoch_{}".format(epoch), "evaluation_step2_A.json")
@@ -30,26 +30,32 @@ def main():
             inv_acc_test = round(eval["inv_acc_test"], 3)
 
             if len(data)==0:
-                data = np.array([[dataset, "DVI", "Train", "DVI-Train", "{}".format(str(epoch//p)), nn_train]])
+                data = np.array([[dataset, "DVI", "Train", "DVI-Train", "{}".format(str(epoch_id)), inv_acc_train]])
             else:
                 data = np.concatenate((data, np.array([[dataset, "DVI", "Train", "DVI-Train", "{}".format(str(epoch_id)), inv_acc_train]])), axis=0)
             data = np.concatenate((data, np.array([[dataset, "DVI", "Test", "DVI-Test", "{}".format(str(epoch_id)), inv_acc_test]])), axis=0)
         
-        eval_path = "/home/xianglin/projects/DVI_data/TemporalExp/resnet18_{}/Model/SV_evaluation.json".format(dataset)
+        eval_path = "/home/xianglin/projects/DVI_data/TemporalExp/resnet18_{}/Model/test_evaluation.json".format(dataset)
         with open(eval_path, "r") as f:
                 eval = json.load(f)
         for epoch_id  in range(3):
             epoch = selected_epochs[epoch_id]
-            ppr_train = round(eval["ppr_train"][epoch], 3)
-            ppr_test = round(eval["ppr_test"][epoch], 3)
+            ppr_train = round(eval["ppr_train"][str(epoch)], 3)
+            ppr_test = round(eval["ppr_test"][str(epoch)], 3)
 
             data = np.concatenate((data, np.array([[dataset, "TimeVis", "Train", "TimeVis-Train",  "{}".format(str(epoch_id)), ppr_train]])), axis=0)
             data = np.concatenate((data, np.array([[dataset, "TimeVis", "Test", "TimeVis-Test", "{}".format(str(epoch_id)), ppr_test]])), axis=0)
 
-            df_tmp = pd.DataFrame(data, columns=col)
-            df = df.append(df_tmp, ignore_index=True)
-            df[["period"]] = df[["period"]].astype(int)
-            df[["eval"]] = df[["eval"]].astype(float)
+        # df_tmp = pd.DataFrame(data, columns=col)
+        # df = df.append(df_tmp, ignore_index=True)
+        # df[["period"]] = df[["period"]].astype(int)
+        # df[["eval"]] = df[["eval"]].astype(float)
+
+        df_tmp = pd.DataFrame(data, columns=col)
+        df = df.append(df_tmp, ignore_index=True)
+        df[["period"]] = df[["period"]].astype(int)
+        # df[["k"]] = df[["k"]].astype(int)
+        df[["eval"]] = df[["eval"]].astype(float)
 
     #%%
     df.to_excel("PPR.xlsx")
@@ -57,10 +63,10 @@ def main():
     sns.set_theme(style="whitegrid", palette=pal20c)
     hue_dict = {
             "DVI-Train": pal20c[0],
-            "TimeVis-Train": pal20c[16],
+            "TimeVis-Train": pal20c[4],
 
             "DVI-Test": pal20c[3],
-            "TimeVis-Test": pal20c[19],
+            "TimeVis-Test": pal20c[7],
         }
     sns.palplot([hue_dict[i] for i in hue_dict.keys()])
 
@@ -105,7 +111,7 @@ def main():
     # fg.fig.suptitle("Prediction Preserving property")
 
     fg.savefig(
-        "inv_accu.png",
+        "inv_accu.pdf",
         dpi=300,
         bbox_inches="tight",
         pad_inches=0.0,

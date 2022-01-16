@@ -38,13 +38,13 @@ def main():
                     data = np.concatenate((data, np.array([[dataset, "DVI", "Train", "DVI-Train", "{}".format(k), "{}".format(str(epoch_id)), nn_train]])), axis=0)
                 data = np.concatenate((data, np.array([[dataset, "DVI", "Test", "DVI-Test", "{}".format(k), "{}".format(str(epoch_id)), nn_test]])), axis=0)
 
-            eval_path = "/home/xianglin/projects/DVI_data/TemporalExp/resnet18_{}/Model/SV_evaluation.json".format(dataset)
+            eval_path = "/home/xianglin/projects/DVI_data/TemporalExp/resnet18_{}/Model/test_evaluation.json".format(dataset)
             with open(eval_path, "r") as f:
                     eval = json.load(f)
             for epoch_id  in range(3):
                 epoch = selected_epochs[epoch_id]
-                nn_train = round(eval[k]["nn_train"][epoch], 3)
-                nn_test = round(eval[k]["nn_test"][epoch], 3)
+                nn_train = round(eval[str(k)]["nn_train"][str(epoch)], 3)
+                nn_test = round(eval[str(k)]["nn_test"][str(epoch)], 3)
 
                 data = np.concatenate((data, np.array([[dataset, "TimeVis", "Train", "TimeVis-Train", "{}".format(k), "{}".format(str(epoch_id)), nn_train]])), axis=0)
                 data = np.concatenate((data, np.array([[dataset, "TimeVis", "Test", "TimeVis-Test", "{}".format(k), "{}".format(str(epoch_id)), nn_test]])), axis=0)
@@ -64,10 +64,10 @@ def main():
         sns.set_theme(style="whitegrid", palette=pal20c)
         hue_dict = {
             "DVI-Train": pal20c[0],
-            "TimeVis-Train": pal20c[16],
+            "TimeVis-Train": pal20c[4],
 
             "DVI-Test": pal20c[3],
-            "TimeVis-Test": pal20c[19],
+            "TimeVis-Test": pal20c[7],
         }
         sns.palplot([hue_dict[i] for i in hue_dict.keys()])
 

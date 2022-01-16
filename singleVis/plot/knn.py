@@ -1,3 +1,5 @@
+
+import argparse
 import os
 import json
 
@@ -5,49 +7,47 @@ import numpy as np
 import pandas as pd
 import matplotlib as mpl
 import seaborn as sns
-import argparse
 
 
 def main():
     datasets = ["mnist", "fmnist", "cifar10"]
-    selected_epochs = [1,4,10]
+    selected_epochs = [1, 4, 10]
     # k_neighbors = [10, 15, 20]
-    k_neighbors = [15]
+    k_neighbors = [1,3,5,7]
     col = np.array(["dataset", "method", "type", "hue", "k", "period", "eval"])
     df = pd.DataFrame({}, columns=col)
 
-    for k in k_neighbors:
+    for k in k_neighbors: # k neighbors
         for i in range(3): # dataset
             dataset = datasets[i]
             data = np.array([])
             # load data from evaluation.json
             # DVI
             content_path = "/home/xianglin/projects/DVI_data/TemporalExp/resnet18_{}".format(dataset)
+            eval_path = os.path.join(content_path, "Model", "time_step2_A.json")
             for epoch_id in range(3):
                 epoch  = selected_epochs[epoch_id]
-                eval_path = os.path.join(content_path, "Model", "Epoch_{}".format(epoch), "evaluation_step2_A.json")
                 with open(eval_path, "r") as f:
                     eval = json.load(f)
-                bound_train = round(eval["bound_train_{}".format(k)], 3)
-                bound_test = round(eval["bound_test_{}".format(k)], 3)
+                nn_train = round(eval["temporal_train_ranking"][str(epoch)][str(k_neighbors)], 3)
+                nn_test = round(eval["temporal_test_ranking"][str(epoch)][str(k_neighbors)], 3)
 
-
-                if len(data)==0:
-                    data = np.array([[dataset, "DVI", "Train", "DVI-Train", "{}".format(k), "{}".format(str(epoch_id)), bound_train]])
+                if len(data) == 0:
+                    data = np.array([[dataset, "DVI", "Train", "DVI-Train",  "{}".format(str(epoch_id)), nn_train]])
                 else:
-                    data = np.concatenate((data, np.array([[dataset, "DVI", "Train", "DVI-Train", "{}".format(k), "{}".format(str(epoch_id)), bound_train]])), axis=0)
-                data = np.concatenate((data, np.array([[dataset, "DVI", "Test", "DVI-Test", "{}".format(k), "{}".format(str(epoch_id)), bound_test]])), axis=0)
-            
+                    data = np.concatenate((data, np.array([[dataset, "DVI", "Train", "DVI-Train",  "{}".format(k_neighbors),"{}".format(str(epoch_id)), nn_train]])), axis=0)
+                data = np.concatenate((data, np.array([[dataset, "DVI", "Test", "DVI-Test","{}".format(k_neighbors), "{}".format(str(epoch_id)), nn_test]])), axis=0)
+
             eval_path = "/home/xianglin/projects/DVI_data/TemporalExp/resnet18_{}/Model/test_evaluation.json".format(dataset)
             with open(eval_path, "r") as f:
                     eval = json.load(f)
             for epoch_id  in range(3):
                 epoch = selected_epochs[epoch_id]
-                bound_train = round(eval[str(k)]["b_train"][str(epoch)], 3)
-                bound_test = round(eval[str(k)]["b_test"][str(epoch)], 3)
+                nn_train = round(eval["ranking_train"][str(epoch)][str(k_neighbors)], 3)
+                nn_test = round(eval["ranking_test"][str(epoch)][str(k_neighbors)], 3)
 
-                data = np.concatenate((data, np.array([[dataset, "TimeVis", "Train", "TimeVis-Train", "{}".format(k), "{}".format(str(epoch_id)), bound_train]])), axis=0)
-                data = np.concatenate((data, np.array([[dataset, "TimeVis", "Test", "TimeVis-Test", "{}".format(k), "{}".format(str(epoch_id)), bound_test]])), axis=0)
+                data = np.concatenate((data, np.array([[dataset, "TimeVis", "Train", "TimeVis-Train", "{}".format(k_neighbors), "{}".format(str(epoch_id)), nn_train]])), axis=0)
+                data = np.concatenate((data, np.array([[dataset, "TimeVis", "Test", "TimeVis-Test",  "{}".format(k_neighbors), "{}".format(str(epoch_id)), nn_test]])), axis=0)
 
             df_tmp = pd.DataFrame(data, columns=col)
             df = df.append(df_tmp, ignore_index=True)
@@ -56,11 +56,11 @@ def main():
             df[["eval"]] = df[["eval"]].astype(float)
 
     #%%
-    df.to_excel("boundary.xlsx")
+    df.to_excel("temporal.xlsx")
     for k in k_neighbors:
         df_tmp = df[df["k"] == k]
-
         pal20c = sns.color_palette('tab20c', 20)
+        # sns.palplot(pal20c)
         sns.set_theme(style="whitegrid", palette=pal20c)
         hue_dict = {
             "DVI-Train": pal20c[0],
@@ -107,18 +107,19 @@ def main():
 
         (fg.despine(bottom=False, right=False, left=False, top=False)
          .set_xticklabels(['Begin', 'Mid', 'End'])
-         .set_axis_labels("", "Boundary NN Preserving")
+         .set_axis_labels("", "")
          )
-        # fg.fig.suptitle("Boundary preserving property")
+        # fg.fig.suptitle("NN preserving property")
 
-        #%%
         fg.savefig(
-            "boundary_{}.pdf".format(k),
+            "temporal_{}.pdf".format(k_neighbors),
             dpi=300,
             bbox_inches="tight",
             pad_inches=0.0,
             transparent=True,
         )
 
+
 if __name__ == "__main__":
     main()
+
