@@ -6,6 +6,8 @@ import numpy as np
 from scipy.stats import pearsonr
 from pynndescent import NNDescent
 from sklearn.manifold import trustworthiness
+from scipy.stats import kendalltau
+from scipy.stats import pearsonr
 
 
 def evaluate_proj_nn_perseverance_knn(data, embedding, n_neighbors, metric="euclidean"):
@@ -193,6 +195,19 @@ def evaluate_proj_temporal_perseverance_entropy(alpha, delta_x):
             corr[i] = correlation
 
     return corr.mean()
+
+def evaluate_proj_temporal_temporal_corr(high_rank, low_rank):
+    l = len(high_rank)
+    tau_l = np.zeros(l)
+    for i in range(l):
+        r1 = high_rank[i]
+        r2 = low_rank[i]
+        tau, _ = kendalltau(r1, r2)
+        # tau, _ = pearsonr(r1, r2)
+
+        tau_l[i] = tau
+    # return tau_l.mean(), tau_l.std()
+    return tau_l
 
 
 def evaluate_keep_B(low_B, grid_view, decision_view, threshold=0.8):

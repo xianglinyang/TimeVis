@@ -20,6 +20,7 @@ from singleVis.data import DataProvider
 from singleVis.backend import construct_spatial_temporal_complex_kc, construct_spatial_temporal_complex_kc_dist
 from singleVis.utils import hausdorff_dist
 import singleVis.config as config
+from singleVis.eval.evaluator import Evaluator
 
 
 parser = argparse.ArgumentParser(description='Process hyperparameters...')
@@ -65,9 +66,7 @@ data_provider = DataProvider(content_path, net, 1, TIME_STEPS, 1, split=-1, devi
 if PREPROCESS:
     data_provider.initialize(LEN//10, l_bound=L_BOUND)
 
-# devices_ids = [0,1,2,3]
 model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256)
-# model = torch.nn.DataParallel(model, device_ids=devices_ids)
 negative_sample_rate = 5
 min_dist = .1
 _a, _b = find_ab_params(1.0, min_dist)
@@ -79,11 +78,10 @@ optimizer = torch.optim.Adam(model.parameters(), lr=.01, weight_decay=1e-5)
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=.1)
 
 t0 = time.time()
-# edge_to, edge_from, probs, feature_vectors, attention = construct_spatial_temporal_complex_kc_dist(data_provider, MAX_HAUSDORFF, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT)
 edge_to, edge_from, probs, feature_vectors, attention = construct_spatial_temporal_complex_kc(data_provider, INIT_NUM, MAX_HAUSDORFF, ALPHA, BETA, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT)
 t1 = time.time()
 # save result
-save_dir = os.path.join(data_provider.model_path, "SV_time_test.json")
+save_dir = os.path.join(data_provider.model_path, "SV_time_test2.json")
 if not os.path.exists(save_dir):
     evaluation = dict()
 else:
@@ -110,8 +108,7 @@ t2=time.time()
 trainer.train(PATIENT, EPOCH_NUMS)
 t3 = time.time()
 # save result
-# save result
-save_dir = os.path.join(data_provider.model_path, "SV_time_test.json")
+save_dir = os.path.join(data_provider.model_path, "SV_time_test2.json")
 if not os.path.exists(save_dir):
     evaluation = dict()
 else:
@@ -121,7 +118,7 @@ else:
 evaluation["training"] = round(t3-t2, 3)
 with open(save_dir, 'w') as f:
     json.dump(evaluation, f)
-trainer.save(save_dir=data_provider.model_path, file_name="test")
+trainer.save(save_dir=data_provider.model_path, file_name="test2")
 # trainer.load(file_path=os.path.join(data_provider.model_path,"SV.pth"))
 
 ########################################################################################################################
@@ -134,14 +131,14 @@ save_dir = os.path.join(data_provider.content_path, "img")
 if not os.path.exists(save_dir):
     os.mkdir(save_dir)
 for i in range(1, TIME_STEPS+1, 1):
-    vis.savefig(i, path=os.path.join(save_dir, "{}_{}.png".format(DATASET, i)))
+    vis.savefig(i, path=os.path.join(save_dir, "{}_{}_2.png".format(DATASET, i)))
 
 ########################################################################################################################
 # evaluate
 ########################################################################################################################
-from singleVis.eval.evaluator import Evaluator
 evaluator = Evaluator(data_provider, trainer)
-evaluator.save_eval(n_neighbors=15, file_name="test_evaluation")
+evaluator.save_eval(n_neighbors=15, file_name="test_evaluation2")
+
 
 
 

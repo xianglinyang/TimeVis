@@ -68,26 +68,32 @@ trainer.load(file_path=os.path.join(data_provider.model_path,"test.pth"))
 ########################################################################################################################
 # visualization results
 ########################################################################################################################
-classes = list(range(10))
-vis = visualizer(data_provider, trainer.model, 200, 10, classes)
-save_dir = "./result"
-if not os.path.exists(save_dir):
-    os.mkdir(save_dir)
-for i in range(1, TIME_STEPS+1, 1):
-    test_data = data_provider.test_representation(i)
-    test_labels = data_provider.test_labels(i)
-    with open("/home/xianglin/projects/DVI_data/online_learning/target_list.json", "r") as f:
-        index = json.load(f)
-    test_data = test_data[index]
-    test_labels = test_labels[index]
-    preds = data_provider.get_pred(i, test_data)
-    preds = np.argmax(preds, axis=1)
-    vis.savefig_cus(i,test_data, preds, test_labels, path=os.path.join(save_dir, "motivated_{}_{}.png".format(DATASET, i)))
+# classes = list(range(10))
+# vis = visualizer(data_provider, trainer.model, 200, 10, classes)
+# save_dir = "./result"
+# if not os.path.exists(save_dir):
+#     os.mkdir(save_dir)
+# for i in range(1, TIME_STEPS+1, 1):
+#     test_data = data_provider.test_representation(i)
+#     test_labels = data_provider.test_labels(i)
+#     with open("/home/xianglin/projects/DVI_data/online_learning/target_list.json", "r") as f:
+#         index = json.load(f)
+#     test_data = test_data[index]
+#     test_labels = test_labels[index]
+#     preds = data_provider.get_pred(i, test_data)
+#     preds = np.argmax(preds, axis=1)
+#     vis.savefig_cus(i,test_data, preds, test_labels, path=os.path.join(save_dir, "motivated_{}_{}.png".format(DATASET, i)))
 ########################################################################################################################
 # evaluate
 ########################################################################################################################
 from singleVis.eval.evaluator import Evaluator
 evaluator = Evaluator(data_provider, trainer)
-evaluator.save_eval(n_neighbors=15, file_name="test_evaluation")
+evaluator.save_eval(n_neighbors=10, file_name="test_evaluation")
+# evaluator.save_eval(n_neighbors=15, file_name="test_evaluation")
+evaluator.save_eval(n_neighbors=30, file_name="test_evaluation")
 # evaluator.eval_temporal_md_train(15)
 # evaluator.eval_temporal_md_test(15)
+# evaluator.eval_temporal_corr_train(n_grain=2)
+# evaluator.eval_temporal_corr_train(n_grain=2)
+# evaluator.eval_temporal_train(15)
+# evaluator.eval_temporal_test(15)

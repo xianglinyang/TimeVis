@@ -19,7 +19,7 @@ dataset_config = {
             "TEMPORAL_PERSISTENT": 1,
             "NUMS": 5,   # the number of epochs to go through in one go
             "PATIENT": 3,    # early stopping patient
-            "TEMPORAL_EDGE_WEIGHT":100,
+            "TEMPORAL_EDGE_WEIGHT":50,
         }
         
     },
@@ -35,7 +35,7 @@ dataset_config = {
         "INIT_NUM":300,
         "training_config":{
             "EPOCH_NUM": 6,
-            "TIME_STEPS": 5,
+            "TIME_STEPS": 10,
             "TEMPORAL_PERSISTENT": 1,
             "NUMS": 5,   # the number of epochs to go through in one go
             "PATIENT": 3,    # early stopping patient
@@ -59,7 +59,7 @@ dataset_config = {
             "TEMPORAL_PERSISTENT": 1,
             "NUMS": 5,   # the number of epochs to go through in one go
             "PATIENT": 3,    # early stopping patient
-            "TEMPORAL_EDGE_WEIGHT":100,
+            "TEMPORAL_EDGE_WEIGHT":5,
         }
     },
     "fmnist": {
@@ -81,7 +81,7 @@ dataset_config = {
             "TEMPORAL_PERSISTENT": 1,
             "NUMS": 5,   # the number of epochs to go through in one go
             "PATIENT": 4,    # early stopping patient
-            "TEMPORAL_EDGE_WEIGHT":100,
+            "TEMPORAL_EDGE_WEIGHT":5,
         }
     }
 }

@@ -3,6 +3,7 @@ backend APIs for Single Visualization model trainer
 """
 # import modules
 from os import replace
+import json
 import torch
 import time
 import math
@@ -612,6 +613,8 @@ def construct_spatial_temporal_complex_kc(data_provider, init_num, MAX_HAUSDORFF
         kc = kCenterGreedy(train_data)
         _ = kc.select_batch_with_cn(selected_idxs, MAX_HAUSDORFF, c_c0, d_d0, p=0.95)
         selected_idxs = kc.already_selected.astype("int")
+        with open("selected_{}.json".format(t), "w") as f:
+            json.dump(selected_idxs.tolist(), f)
         print("select {:d} points".format(len(selected_idxs)))
 
         time_step_idxs_list.insert(0, np.arange(len(selected_idxs)).tolist())
@@ -682,7 +685,6 @@ def construct_spatial_temporal_complex_kc(data_provider, init_num, MAX_HAUSDORFF
     probs_t = vals / (vals.max() + 1e-4)
     # probs_t = probs_t*(1+strenthen_neighbor)
     # probs_t = probs_t*TEMPORAL_EDGE_WEIGHT
-    # probs_t = probs_t*2
 
     probs = np.concatenate((probs, probs_t), axis=0)
     edge_to = np.concatenate((edge_to, heads), axis=0)

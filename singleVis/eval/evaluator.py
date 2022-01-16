@@ -2,6 +2,7 @@ import os
 import json
 import gc
 
+import numpy as np
 
 from singleVis.eval.evaluate import *
 from singleVis.backend import *
@@ -161,7 +162,75 @@ class Evaluator:
         if self.verbose:
             print("Temporal preserving (test): {:.3f}\t std:{:.3f}".format(val_corr, corr_std))
         return val_corr, corr_std
-    
+
+    def eval_temporal_ranking_corr_train(self, epoch, k):
+        epoch_num = (self.data_provider.e - self.data_provider.s) // self.data_provider.p + 1
+        l = self.data_provider.train_num
+        high_dists = np.zeros((l, epoch_num))
+        low_dists = np.zeros((l, epoch_num))
+
+        self.trainer.model.eval()
+
+        curr_data = self.data_provider.train_representation(epoch)
+        curr_embedding = self.trainer.model.encoder(
+            torch.from_numpy(curr_data).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
+        
+        for t in range(epoch_num):
+            data = self.data_provider.train_representation(t * self.data_provider.p + self.data_provider.s)
+            embedding = self.trainer.model.encoder(
+                torch.from_numpy(data).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
+
+            high_dist = np.linalg.norm(curr_data - data, axis=1)
+            low_dist = np.linalg.norm(curr_embedding - embedding, axis=1)
+            high_dists[:, t] = high_dist
+            low_dists[:, t] = low_dist
+        
+        high_rankings = np.argsort(high_dists, axis=1)[:, :k]
+        low_rankings = np.argsort(low_dists, axis=1)[:, :k]
+        corr = np.zeros(len(high_dist))
+        for i in range(len(data)):
+            corr[i] = len(np.intersect1d(high_rankings[i], low_rankings[i]))
+
+        # corr = evaluate_proj_temporal_temporal_corr(high_rankings, low_rankings)
+        # val_corr, corr_std = evaluate_proj_temporal_temporal_corr(high_rankings, low_rankings)
+        if self.verbose:
+            print("Temporal temporal neighbor preserving (train) for {}-th epoch {}: {:.3f}\t std :{:.3f}".format(epoch, k, corr.mean(), corr.std()))
+        return float(corr.mean())
+
+    def eval_temporal_ranking_corr_test(self, epoch, k):
+        epoch_num = (self.data_provider.e - self.data_provider.s) // self.data_provider.p + 1
+        l = self.data_provider.test_num
+        high_dists = np.zeros((l, epoch_num))
+        low_dists = np.zeros((l, epoch_num))
+
+        self.trainer.model.eval()
+
+        curr_data = self.data_provider.test_representation(epoch)
+        curr_embedding = self.trainer.model.encoder(
+            torch.from_numpy(curr_data).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
+        for t in range(epoch_num):
+            data = self.data_provider.test_representation(t * self.data_provider.p + self.data_provider.s)
+            embedding = self.trainer.model.encoder(
+                torch.from_numpy(data).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
+
+            high_dist = np.linalg.norm(curr_data - data, axis=1)
+            low_dist = np.linalg.norm(curr_embedding - embedding, axis=1)
+            high_dists[:, t] = high_dist
+            low_dists[:,t] = low_dist
+        
+        high_rankings = np.argsort(high_dists, axis=1)[:, :k]
+        low_rankings = np.argsort(low_dists, axis=1)[:, :k]
+        corr = np.zeros(len(high_dist))
+        for i in range(len(data)):
+            corr[i] = len(np.intersect1d(high_rankings[i], low_rankings[i]))
+
+        # val_corr, corr_std = evaluate_proj_temporal_temporal_corr(high_rankings, low_rankings)
+        # corr = evaluate_proj_temporal_temporal_corr(high_rankings, low_rankings)
+        if self.verbose:
+            print("Temporal ranking preserving (test) for {}-th epoch {}: {:.3f}\t std:{:.3f}".format(epoch, k, corr.mean(), corr.std()))
+        return float(corr.mean())
+
+
     def eval_temporal_corr_train(self, n_grain=1):
         eval = dict()
 
@@ -301,10 +370,10 @@ class Evaluator:
         evaluation[n_key]["b_test"] = dict()
         evaluation["ppr_train"] = dict()
         evaluation["ppr_test"] = dict()
+        evaluation["ranking_train"] = dict()
+        evaluation["ranking_test"] = dict()
 
         for epoch in range(self.data_provider.s, self.data_provider.e+1, self.data_provider.p):
-        # for epoch in [self.data_provider.s, int((self.data_provider.s+self.data_provider.e)/2), self.data_provider.e]:
-        # for epoch in [1,4,10]:
 
             evaluation[n_key]["nn_train"][epoch] = self.eval_nn_train(epoch, n_neighbors)
             evaluation[n_key]["nn_test"][epoch] = self.eval_nn_test(epoch, n_neighbors)
@@ -314,6 +383,11 @@ class Evaluator:
 
             evaluation["ppr_train"][epoch] = self.eval_inv_train(epoch)
             evaluation["ppr_test"][epoch] = self.eval_inv_test(epoch)
+            evaluation["ranking_train"][epoch] = dict()
+            evaluation["ranking_test"][epoch] = dict()
+            for k in [1,3,5,7]:
+                evaluation["ranking_train"][epoch][k] = self.eval_temporal_ranking_corr_train(epoch, k)
+                evaluation["ranking_test"][epoch][k] = self.eval_temporal_ranking_corr_test(epoch, k)
 
         t_train_val, t_train_std = self.eval_temporal_train(n_neighbors)
         evaluation[n_key]["temporal_train_mean"] = t_train_val
@@ -321,14 +395,10 @@ class Evaluator:
         t_test_val, t_test_std = self.eval_temporal_test(n_neighbors)
         evaluation[n_key]["temporal_test_mean"] = t_test_val
         evaluation[n_key]["temporal_test_std"] = t_test_std
-        corr_train = self.eval_temporal_corr_train()
-        evaluation["temporal_corr_train"] = corr_train
-        corr_test = self.eval_temporal_corr_test()
-        evaluation["temporal_corr_test"] = corr_test
-        md_train = self.eval_temporal_md_train(n_neighbors)
-        evaluation["temporal_md_train"] = md_train
-        md_test = self.eval_temporal_md_test(n_neighbors)
-        evaluation["temporal_md_test"] = md_test
+        # corr_train = self.eval_temporal_corr_train()
+        # evaluation["temporal_corr_train"] = corr_train
+        # corr_test = self.eval_temporal_corr_test()
+        # evaluation["temporal_corr_test"] = corr_test
 
         with open(save_dir, "w") as f:
             json.dump(evaluation, f)
