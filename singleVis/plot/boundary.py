@@ -11,8 +11,8 @@ import argparse
 def main():
     datasets = ["mnist", "fmnist", "cifar10"]
     selected_epochs = [1,4,10]
-    # k_neighbors = [10, 15, 20]
-    k_neighbors = [15]
+    k_neighbors = [10, 15, 20]
+    # k_neighbors = [15]
     col = np.array(["dataset", "method", "type", "hue", "k", "period", "eval"])
     df = pd.DataFrame({}, columns=col)
 
@@ -113,7 +113,7 @@ def main():
 
         #%%
         fg.savefig(
-            "boundary_{}.pdf".format(k),
+            "boundary_{}.png".format(k),
             dpi=300,
             bbox_inches="tight",
             pad_inches=0.0,

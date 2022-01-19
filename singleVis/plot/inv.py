@@ -111,7 +111,7 @@ def main():
     # fg.fig.suptitle("Prediction Preserving property")
 
     fg.savefig(
-        "inv_accu.pdf",
+        "inv_accu.png",
         dpi=300,
         bbox_inches="tight",
         pad_inches=0.0,

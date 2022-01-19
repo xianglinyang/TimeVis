@@ -16,20 +16,23 @@ class visualizer:
 
         self.model.eval()
     
-    def _init_plot(self):
+    def _init_plot(self, only_img=False):
         '''
         Initialises matplotlib artists and plots. from DeepView and DVI
         '''
         plt.ion()
         self.fig, self.ax = plt.subplots(1, 1, figsize=(8, 8))
 
-        self.ax.set_title("DVI-T visualization")
-        self.desc = self.fig.text(0.5, 0.02, '', fontsize=8, ha='center')
+        if not only_img:
+            self.ax.set_title("TimeVis visualization")
+            self.desc = self.fig.text(0.5, 0.02, '', fontsize=8, ha='center')
+            self.ax.legend()
+        else:
+            self.ax.set_axis_off()
         self.cls_plot = self.ax.imshow(np.zeros([5, 5, 3]),
             interpolation='gaussian', zorder=0, vmin=0, vmax=1)
 
         self.sample_plots = []
-
         # labels = prediction
         for c in range(self.class_num):
             color = self.cmap(c/(self.class_num-1))
@@ -55,7 +58,7 @@ class visualizer:
         # self.fig.canvas.mpl_connect('pick_event', self.show_sample)
         # self.fig.canvas.mpl_connect('button_press_event', self.show_sample)
         self.disable_synth = False
-        self.ax.legend()
+        
     
     def get_epoch_plot_measures(self, epoch):
         """get plot measure for visualization"""
@@ -171,7 +174,7 @@ class visualizer:
         '''
         Shows the current plot with given data
         '''
-        self._init_plot()
+        self._init_plot(only_img=True)
 
         x_min, y_min, x_max, y_max = self.get_epoch_plot_measures(epoch)
 
@@ -181,9 +184,9 @@ class visualizer:
         self.ax.set_xlim((x_min, x_max))
         self.ax.set_ylim((y_min, y_max))
 
-        params_str = 'res: %d'
-        desc = params_str % (self.resolution)
-        self.desc.set_text(desc)
+        # params_str = 'res: %d'
+        # desc = params_str % (self.resolution)
+        # self.desc.set_text(desc)
 
         data = torch.from_numpy(data).to(device=self.data_provider.DEVICE, dtype=torch.float)
         embedding = self.model.encoder(data).cpu().detach().numpy()
@@ -208,7 +211,7 @@ class visualizer:
         '''
         Shows the current plot with given data
         '''
-        self._init_plot()
+        self._init_plot(only_img=True)
 
         x_min, y_min, x_max, y_max = self.get_epoch_plot_measures(epoch)
 
@@ -218,9 +221,10 @@ class visualizer:
         self.ax.set_xlim((x_min, x_max))
         self.ax.set_ylim((y_min, y_max))
 
-        params_str = 'res: %d'
-        desc = params_str % (self.resolution)
-        self.desc.set_text(desc)
+        # title
+        # params_str = 'res: %d'
+        # desc = params_str % (self.resolution)
+        # self.desc.set_text(desc)
 
         data = torch.from_numpy(data).to(device=self.data_provider.DEVICE, dtype=torch.float)
         embedding = self.model.encoder(data).cpu().detach().numpy()
@@ -228,22 +232,36 @@ class visualizer:
         prev_data = torch.from_numpy(prev_data).to(device=self.data_provider.DEVICE, dtype=torch.float)
         prev_embedding = self.model.encoder(prev_data).cpu().detach().numpy()
 
-        all_labels = np.concatenate((prev_labels, labels), axis=0)
-        all_pred = np.concatenate((prev_pred, pred), axis=0)
-        all_embedding = np.concatenate((prev_embedding, embedding), axis=0)
+        # all_labels = np.concatenate((prev_labels, labels), axis=0)
+        # all_pred = np.concatenate((prev_pred, pred), axis=0)
+        # all_embedding = np.concatenate((prev_embedding, embedding), axis=0)
 
         # show data with prev_data
-        for c in range(self.class_num):
-            data = all_embedding[np.logical_and(all_labels == c, all_labels == all_pred)]
-            self.sample_plots[c].set_data(data.transpose())
+        # for c in range(self.class_num):
+        #     data = all_embedding[np.logical_and(all_labels == c, all_labels == all_pred)]
+        #     self.sample_plots[c].set_data(data.transpose())
 
-        for c in range(self.class_num):
-            data = all_embedding[np.logical_and(all_labels == c, all_labels != all_pred)]
-            self.sample_plots[self.class_num+c].set_data(data.transpose())
+        # for c in range(self.class_num):
+        #     data = all_embedding[np.logical_and(all_labels == c, all_labels != all_pred)]
+        #     self.sample_plots[self.class_num+c].set_data(data.transpose())
 
-        for c in range(self.class_num):
-            data = all_embedding[np.logical_and(all_pred == c, all_labels != all_pred)]
-            self.sample_plots[2*self.class_num + c].set_data(data.transpose())
+        # for c in range(self.class_num):
+        #     data = all_embedding[np.logical_and(all_pred == c, all_labels != all_pred)]
+        #     self.sample_plots[2*self.class_num + c].set_data(data.transpose())
+        # curr
+        color = (1.0, 1.0, 0.0, 1.0)
+        plot = self.ax.plot([], [], '.', markeredgecolor=color,
+                            fillstyle='full', ms=20, mew=4, zorder=1)
+        self.sample_plots.append(plot[0])
+        # prev
+        color = (1.0, 0.0, 0.0, 1.0)
+        plot = self.ax.plot([], [], '.', markeredgecolor=color,
+                            fillstyle='full', ms=20, mew=4, zorder=1)
+        self.sample_plots.append(plot[0])
         
-        plt.quiver(prev_embedding[:, 0], prev_embedding[:, 1], embedding[:, 0]-prev_embedding[:, 0],embedding[:, 1]-prev_embedding[:, 1], scale_units='xy', angles='xy', scale=1)  
+        plt.quiver(prev_embedding[:, 0], prev_embedding[:, 1], embedding[:, 0]-prev_embedding[:, 0],embedding[:, 1]-prev_embedding[:, 1], scale_units='xy', angles='xy', scale=1, color='y')  
+        self.sample_plots[3*self.class_num].set_data(embedding.transpose())
+        self.sample_plots[3*self.class_num+1].set_data(prev_embedding.transpose())
+        
+        # plt.quiver(prev_embedding[:, 0], prev_embedding[:, 1], embedding[:, 0]-prev_embedding[:, 0],embedding[:, 1]-prev_embedding[:, 1], scale_units='xy', angles='xy', scale=1)  
         plt.savefig(path)
