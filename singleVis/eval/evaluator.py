@@ -163,7 +163,7 @@ class Evaluator:
             print("Temporal preserving (test): {:.3f}\t std:{:.3f}".format(val_corr, corr_std))
         return val_corr, corr_std
 
-    def eval_temporal_ranking_corr_train(self, epoch, k):
+    def eval_temporal_nn_train(self, epoch, n_neighbors):
         epoch_num = (self.data_provider.e - self.data_provider.s) // self.data_provider.p + 1
         l = self.data_provider.train_num
         high_dists = np.zeros((l, epoch_num))
@@ -185,19 +185,24 @@ class Evaluator:
             high_dists[:, t] = high_dist
             low_dists[:, t] = low_dist
         
-        high_rankings = np.argsort(high_dists, axis=1)[:, :k]
-        low_rankings = np.argsort(low_dists, axis=1)[:, :k]
-        corr = np.zeros(len(high_dist))
+        # find the index of top k dists
+        high_orders = np.argsort(high_dists, axis=1)
+        low_orders = np.argsort(low_dists, axis=1)
+        high_rankings = np.zeros((high_orders.shape[0], n_neighbors), dtype=int)
+        low_rankings = np.zeros((high_orders.shape[0], n_neighbors), dtype=int)
+        for i in range(len(high_orders)):
+            high_rankings[i] = np.argwhere(high_orders[i]<n_neighbors).squeeze()
+            low_rankings[i] = np.argwhere(low_orders[i]<n_neighbors).squeeze()
+        
+        corr = np.zeros(len(high_dists))
         for i in range(len(data)):
             corr[i] = len(np.intersect1d(high_rankings[i], low_rankings[i]))
 
-        # corr = evaluate_proj_temporal_temporal_corr(high_rankings, low_rankings)
-        # val_corr, corr_std = evaluate_proj_temporal_temporal_corr(high_rankings, low_rankings)
         if self.verbose:
-            print("Temporal temporal neighbor preserving (train) for {}-th epoch {}: {:.3f}\t std :{:.3f}".format(epoch, k, corr.mean(), corr.std()))
+            print("Temporal temporal neighbor preserving (train) for {}-th epoch {}: {:.3f}\t std :{:.3f}".format(epoch, n_neighbors, corr.mean(), corr.std()))
         return float(corr.mean())
 
-    def eval_temporal_ranking_corr_test(self, epoch, k):
+    def eval_temporal_nn_test(self, epoch, n_neighbors):
         epoch_num = (self.data_provider.e - self.data_provider.s) // self.data_provider.p + 1
         l = self.data_provider.test_num
         high_dists = np.zeros((l, epoch_num))
@@ -218,20 +223,210 @@ class Evaluator:
             high_dists[:, t] = high_dist
             low_dists[:,t] = low_dist
         
-        high_rankings = np.argsort(high_dists, axis=1)[:, :k]
-        low_rankings = np.argsort(low_dists, axis=1)[:, :k]
-        corr = np.zeros(len(high_dist))
+        # find the index of top k dists
+        high_orders = np.argsort(high_dists, axis=1)
+        low_orders = np.argsort(low_dists, axis=1)
+        high_rankings = np.zeros((high_orders.shape[0], n_neighbors), dtype=int)
+        low_rankings = np.zeros((low_orders.shape[0], n_neighbors), dtype=int)
+        for i in range(len(high_orders)):
+            high_rankings[i] = np.argwhere(high_orders[i]<n_neighbors).squeeze()
+            low_rankings[i] = np.argwhere(low_orders[i]<n_neighbors).squeeze()
+        
+        # high_rankings = np.argsort(high_dists, axis=1)[:, :n_neighbors]
+        # low_rankings = np.argsort(low_dists, axis=1)[:, :n_neighbors]
+        corr = np.zeros(len(high_dists))
         for i in range(len(data)):
             corr[i] = len(np.intersect1d(high_rankings[i], low_rankings[i]))
 
-        # val_corr, corr_std = evaluate_proj_temporal_temporal_corr(high_rankings, low_rankings)
-        # corr = evaluate_proj_temporal_temporal_corr(high_rankings, low_rankings)
         if self.verbose:
-            print("Temporal ranking preserving (test) for {}-th epoch {}: {:.3f}\t std:{:.3f}".format(epoch, k, corr.mean(), corr.std()))
+            print("Temporal ranking preserving (test) for {}-th epoch {}: {:.3f}\t std:{:.3f}".format(epoch, n_neighbors, corr.mean(), corr.std()))
         return float(corr.mean())
+
+    def eval_spatial_temporal_nn_train(self, epoch, n_neighbors):
+        """
+            evaluate whether vis model can preserve the ranking of close spatial and temporal neighbors
+        """
+        # find n temporal neighbors
+        epoch_num = (self.data_provider.e - self.data_provider.s) // self.data_provider.p + 1
+        l = self.data_provider.train_num
+        high_dists = np.zeros((l, epoch_num))
+        low_dists = np.zeros((l, epoch_num))
+
+        self.trainer.model.eval()
+
+        curr_data = self.data_provider.train_representation(epoch)
+        curr_embedding = self.trainer.model.encoder(
+            torch.from_numpy(curr_data).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
+        
+        for t in range(epoch_num):
+            data = self.data_provider.train_representation(t * self.data_provider.p + self.data_provider.s)
+            embedding = self.trainer.model.encoder(
+                torch.from_numpy(data).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
+
+            high_dist = np.linalg.norm(curr_data - data, axis=1)
+            low_dist = np.linalg.norm(curr_embedding - embedding, axis=1)
+            high_dists[:, t] = high_dist
+            low_dists[:, t] = low_dist
+        
+        # retrive top n temporal dists
+        # high_top_n_arg = np.argsort(high_dists, axis=1)[:, :n_neighbors].squeeze()
+        high_orders = np.argsort(high_dists, axis=1)
+        high_top_n_arg = np.zeros((high_orders.shape[0], n_neighbors), dtype=int)
+        for i in range(len(high_orders)):
+            high_top_n_arg[i] = np.argwhere(high_orders[i]<n_neighbors).squeeze()
+
+        high_top_n_dists_t = np.zeros(high_top_n_arg.shape)
+        low_top_n_dists_t = np.zeros(high_top_n_arg.shape)
+        for t in range(len(high_top_n_arg)):
+            high_top_n_dists_t[t] = high_dists[t, high_top_n_arg[t]]
+            low_top_n_dists_t[t] = low_dists[t, high_top_n_arg[t]]
+        
+        # find n spatial neighbors
+        metric = "euclidean"
+        data = self.data_provider.train_representation(epoch)
+        self.trainer.model.eval()
+        embedding = self.trainer.model.encoder(
+            torch.from_numpy(data).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
+        n_trees = 5 + int(round((data.shape[0]) ** 0.5 / 20.0))
+        n_iters = max(5, int(round(np.log2(data.shape[0]))))
+        # get nearest neighbors
+        nnd = NNDescent(
+            data,
+            n_neighbors=n_neighbors,
+            metric=metric,
+            n_trees=n_trees,
+            n_iters=n_iters,
+            max_candidates=60,
+            verbose=True
+        )
+        _, high_dists = nnd.neighbor_graph
+        nnd = NNDescent(
+            embedding,
+            n_neighbors=n_neighbors,
+            metric=metric,
+            n_trees=n_trees,
+            n_iters=n_iters,
+            max_candidates=60,
+            verbose=True
+        )
+        _, low_dists = nnd.neighbor_graph
+
+        # # retrive top n spatial dists
+        # high_top_n_arg = np.argsort(high_dists, axis=1).squeeze()
+        # high_top_n_dists_s = np.zeros(high_top_n_arg.shape)
+        # low_top_n_dists_s = np.zeros(high_top_n_arg.shape)
+        # for t in range(len(high_top_n_arg)):
+        #     high_top_n_dists_s[t] = high_dists[t, high_top_n_arg[t]]
+        #     low_top_n_dists_s[t] = low_dists[t, high_top_n_arg[t]]
+        high_top_n_dists_s = np.copy(high_dists)
+        low_top_n_dists_s = np.copy(low_dists)
+        
+        high_top_n_dists = np.concatenate((high_top_n_dists_t, high_top_n_dists_s), axis=1)
+        low_top_n_dists = np.concatenate((low_top_n_dists_t, low_top_n_dists_s), axis=1)
+        high_ranks = np.argsort(high_top_n_dists)
+        low_ranks = np.argsort(low_top_n_dists)
+        tau_l = evaluate_proj_temporal_temporal_corr(high_rank=high_ranks, low_rank=low_ranks)
+
+        if self.verbose:
+            print("Spatial/Temporal ranking preserving (train) for {}-th epoch {}:\t{:.3f}".format(epoch, n_neighbors, tau_l.mean()))
+        return float(tau_l.mean())
+
+
+    def eval_spatial_temporal_nn_test(self, epoch, n_neighbors):
+        # find n temporal neighbors
+        epoch_num = (self.data_provider.e - self.data_provider.s) // self.data_provider.p + 1
+        l = self.data_provider.test_num
+        high_dists = np.zeros((l, epoch_num))
+        low_dists = np.zeros((l, epoch_num))
+
+        self.trainer.model.eval()
+
+        curr_data = self.data_provider.test_representation(epoch)
+        curr_embedding = self.trainer.model.encoder(
+            torch.from_numpy(curr_data).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
+        for t in range(epoch_num):
+            data = self.data_provider.test_representation(t * self.data_provider.p + self.data_provider.s)
+            embedding = self.trainer.model.encoder(
+                torch.from_numpy(data).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
+
+            high_dist = np.linalg.norm(curr_data - data, axis=1)
+            low_dist = np.linalg.norm(curr_embedding - embedding, axis=1)
+            high_dists[:, t] = high_dist
+            low_dists[:,t] = low_dist
+        
+        # retrive top n temporal dists
+        # high_top_n_arg = np.argsort(high_dists, axis=1)[:, :n_neighbors].squeeze()
+        high_orders = np.argsort(high_dists, axis=1)
+        high_top_n_arg = np.zeros((high_orders.shape[0], n_neighbors), dtype=int)
+        for i in range(len(high_orders)):
+            high_top_n_arg[i] = np.argwhere(high_orders[i]<n_neighbors).squeeze()
+
+        high_top_n_dists_t = np.zeros(high_top_n_arg.shape)
+        low_top_n_dists_t = np.zeros(high_top_n_arg.shape)
+        for t in range(len(high_top_n_arg)):
+            high_top_n_dists_t[t] = high_dists[t, high_top_n_arg[t]]
+            low_top_n_dists_t[t] = low_dists[t, high_top_n_arg[t]]
+
+
+        # find n spatial neighbors(consider the training and testing data together)
+        metric = "euclidean"
+        train_data = self.data_provider.train_representation(epoch)
+        test_data = self.data_provider.test_representation(epoch)
+        data = np.concatenate((train_data, test_data), axis=0)
+        self.trainer.model.eval()
+        embedding = self.trainer.model.encoder(
+            torch.from_numpy(data).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
+
+        n_trees = 5 + int(round((data.shape[0]) ** 0.5 / 20.0))
+        n_iters = max(5, int(round(np.log2(data.shape[0]))))
+        # get nearest neighbors
+        nnd = NNDescent(
+            data,
+            n_neighbors=n_neighbors,
+            metric=metric,
+            n_trees=n_trees,
+            n_iters=n_iters,
+            max_candidates=60,
+            verbose=True
+        )
+        _, high_dists = nnd.neighbor_graph
+        nnd = NNDescent(
+            embedding,
+            n_neighbors=n_neighbors,
+            metric=metric,
+            n_trees=n_trees,
+            n_iters=n_iters,
+            max_candidates=60,
+            verbose=True
+        )
+        _, low_dists = nnd.neighbor_graph
+
+        high_dists = high_dists[-l:]
+        low_dists = low_dists[-l:]
+
+        # retrive top n spatial dists
+        # high_top_n_arg = np.argsort(high_dists, axis=1).squeeze()
+        # high_top_n_dists_s = np.zeros(high_top_n_arg.shape)
+        # low_top_n_dists_s = np.zeros(high_top_n_arg.shape)
+        # for t in range(len(high_top_n_arg)):
+        #     high_top_n_dists_s[t] = high_dists[t, high_top_n_arg[t]]
+        #     low_top_n_dists_s[t] = low_dists[t, high_top_n_arg[t]]
+        high_top_n_dists_s = np.copy(high_dists)
+        low_top_n_dists_s = np.copy(low_dists)
+        
+        high_top_n_dists = np.concatenate((high_top_n_dists_t, high_top_n_dists_s), axis=1)
+        low_top_n_dists = np.concatenate((low_top_n_dists_t, low_top_n_dists_s), axis=1)
+        high_ranks = np.argsort(high_top_n_dists)
+        low_ranks = np.argsort(low_top_n_dists)
+        tau_l = evaluate_proj_temporal_temporal_corr(high_rank=high_ranks, low_rank=low_ranks)
+    
+        if self.verbose:
+            print("Spatial/Temporal ranking preserving (test) for {}-th epoch {}:\t{:.3f}".format(epoch, n_neighbors, tau_l.mean()))
+        return float(tau_l.mean())
 
 
     def eval_temporal_corr_train(self, n_grain=1):
+        """evalute training temporal preserving property"""
         eval = dict()
 
         for n_epoch in range(self.data_provider.s+self.data_provider.p*n_grain, self.data_provider.e+1, n_grain*self.data_provider.p):
@@ -275,81 +470,6 @@ class Evaluator:
 
         return eval
     
-    def eval_temporal_md_train(self, n_neighbors):
-        eval = dict()
-
-        for n_epoch in range(self.data_provider.s+self.data_provider.p, self.data_provider.e+1, self.data_provider.p):
-            prev_data = self.data_provider.train_representation(n_epoch - self.data_provider.p)
-            prev_embedding = self.trainer.model.encoder(
-                torch.from_numpy(prev_data).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
-
-            curr_data = self.data_provider.train_representation(n_epoch)
-            curr_embedding = self.trainer.model.encoder(
-                torch.from_numpy(curr_data).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
-
-            dists = np.linalg.norm(prev_data - curr_data, axis=1)
-            embedding_dists = np.linalg.norm(prev_embedding - curr_embedding, axis=1)
-
-            npr = find_neighbor_preserving_rate(prev_data, curr_data, n_neighbors=n_neighbors)
-            # targets = npr > 0.8
-            # targets_dists = embedding_dists[targets]
-
-            targets_npr = npr < 0.1
-            targets_dists = dists>dists.mean()
-            targets = np.logical_and(targets_dists, targets_npr)
-            target_em_dists = embedding_dists[targets]
-            
-            if len(target_em_dists) == 0:
-                mean = 0
-                std = 0
-                small_n = 0
-            else:
-                mean = target_em_dists.mean()
-                std = target_em_dists.std()
-                small_n = np.sum(target_em_dists<0.5)
-            eval[n_epoch//self.data_provider.p] = (float(mean), float(std), int(small_n))
-            if self.verbose:
-                print("{:d} (train) mean/std value: ({:.2f},{:.2f},{})".format(n_epoch//self.data_provider.p, mean, std, small_n))
-
-        return eval
-    
-    def eval_temporal_md_test(self, n_neighbors):
-        """evalute testing temporal preserving property"""
-        eval = dict()
-
-        for n_epoch in range(self.data_provider.s+self.data_provider.p, self.data_provider.e+1, self.data_provider.p):
-            prev_data = self.data_provider.test_representation(n_epoch-self.data_provider.p)
-            prev_embedding = self.trainer.model.encoder(
-                torch.from_numpy(prev_data).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
-
-            curr_data = self.data_provider.test_representation(n_epoch)
-            curr_embedding = self.trainer.model.encoder(
-                torch.from_numpy(curr_data).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
-
-            dists = np.linalg.norm(prev_data-curr_data, axis=1)
-            embedding_dists = np.linalg.norm(prev_embedding-curr_embedding, axis=1)
-
-            npr = find_neighbor_preserving_rate(prev_data, curr_data, n_neighbors=n_neighbors)
-            # targets = npr > 0.8
-            # targets_dists = embedding_dists[targets]
-            targets_npr = npr < 0.1
-            targets_dists = dists>dists.mean()
-            targets = np.logical_and(targets_dists, targets_npr)
-            target_em_dists = embedding_dists[targets]
-            
-            if len(target_em_dists) == 0:
-                mean = 0
-                std = 0
-                small_n = 0
-            else:
-                mean = target_em_dists.mean()
-                std = target_em_dists.std()
-                small_n = np.sum(target_em_dists<0.5)
-            eval[n_epoch//self.data_provider.p] = (float(mean), float(std), int(small_n))
-            if self.verbose:
-                print("{:d} (test) mean/std value: ({:.2f},{:.2f},{})".format(n_epoch//self.data_provider.p, mean, std, small_n))
-
-        return eval
 
     #################################### helper functions #############################################
 
