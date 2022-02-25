@@ -299,42 +299,41 @@ class Evaluator:
             max_candidates=60,
             verbose=True
         )
-        _, high_dists = nnd.neighbor_graph
-        nnd = NNDescent(
-            embedding,
-            n_neighbors=n_neighbors,
-            metric=metric,
-            n_trees=n_trees,
-            n_iters=n_iters,
-            max_candidates=60,
-            verbose=True
-        )
-        _, low_dists = nnd.neighbor_graph
-
-        # # retrive top n spatial dists
-        # high_top_n_arg = np.argsort(high_dists, axis=1).squeeze()
-        # high_top_n_dists_s = np.zeros(high_top_n_arg.shape)
-        # low_top_n_dists_s = np.zeros(high_top_n_arg.shape)
-        # for t in range(len(high_top_n_arg)):
-        #     high_top_n_dists_s[t] = high_dists[t, high_top_n_arg[t]]
-        #     low_top_n_dists_s[t] = low_dists[t, high_top_n_arg[t]]
+        high_ind, high_dists = nnd.neighbor_graph
+        low_top_n_dists_s = np.zeros(high_top_n_arg.shape)
+        for t in range(len(high_ind)):
+            low_dists = np.linalg.norm(embedding[t]-embedding[high_ind[t]])
+            low_top_n_dists_s[t] = low_dists
         high_top_n_dists_s = np.copy(high_dists)
-        low_top_n_dists_s = np.copy(low_dists)
-        
+
         high_top_n_dists = np.concatenate((high_top_n_dists_t, high_top_n_dists_s), axis=1)
         low_top_n_dists = np.concatenate((low_top_n_dists_t, low_top_n_dists_s), axis=1)
-        high_ranks = np.argsort(high_top_n_dists)
-        low_ranks = np.argsort(low_top_n_dists)
-        tau_l = evaluate_proj_temporal_temporal_corr(high_rank=high_ranks, low_rank=low_ranks)
+
+        # keep top k neighbors
+        # high_ranks = np.argsort(high_top_n_dists)
+        # low_ranks = np.argsort(low_top_n_dists)
+        # tau_l = evaluate_proj_temporal_temporal_corr(high_rank=high_ranks, low_rank=low_ranks)
+        # find the index of top k dists
+        high_orders = np.argsort(high_top_n_dists, axis=1)
+        low_orders = np.argsort(low_top_n_dists, axis=1)
+        high_rankings = np.zeros((high_orders.shape[0], n_neighbors), dtype=int)
+        low_rankings = np.zeros((low_orders.shape[0], n_neighbors), dtype=int)
+        for i in range(len(high_orders)):
+            high_rankings[i] = np.argwhere(high_orders[i]<n_neighbors).squeeze()
+            low_rankings[i] = np.argwhere(low_orders[i]<n_neighbors).squeeze()
+        corr = np.zeros(len(high_rankings))
+        for i in range(len(data)):
+            corr[i] = len(np.intersect1d(high_rankings[i], low_rankings[i]))
 
         if self.verbose:
-            print("Spatial/Temporal ranking preserving (train) for {}-th epoch {}:\t{:.3f}".format(epoch, n_neighbors, tau_l.mean()))
-        return float(tau_l.mean())
+            print("Spatial/Temporal ranking preserving (train) for {}-th epoch {}:\t{:.3f}".format(epoch, n_neighbors, corr.mean()))
+        return float(corr.mean())
 
 
     def eval_spatial_temporal_nn_test(self, epoch, n_neighbors):
         # find n temporal neighbors
         epoch_num = (self.data_provider.e - self.data_provider.s) // self.data_provider.p + 1
+        train_num = self.data_provider.train_num
         l = self.data_provider.test_num
         high_dists = np.zeros((l, epoch_num))
         low_dists = np.zeros((l, epoch_num))
@@ -389,40 +388,38 @@ class Evaluator:
             max_candidates=60,
             verbose=True
         )
-        _, high_dists = nnd.neighbor_graph
-        nnd = NNDescent(
-            embedding,
-            n_neighbors=n_neighbors,
-            metric=metric,
-            n_trees=n_trees,
-            n_iters=n_iters,
-            max_candidates=60,
-            verbose=True
-        )
-        _, low_dists = nnd.neighbor_graph
+        high_ind, high_dists = nnd.neighbor_graph
 
-        high_dists = high_dists[-l:]
-        low_dists = low_dists[-l:]
-
-        # retrive top n spatial dists
-        # high_top_n_arg = np.argsort(high_dists, axis=1).squeeze()
-        # high_top_n_dists_s = np.zeros(high_top_n_arg.shape)
-        # low_top_n_dists_s = np.zeros(high_top_n_arg.shape)
-        # for t in range(len(high_top_n_arg)):
-        #     high_top_n_dists_s[t] = high_dists[t, high_top_n_arg[t]]
-        #     low_top_n_dists_s[t] = low_dists[t, high_top_n_arg[t]]
-        high_top_n_dists_s = np.copy(high_dists)
-        low_top_n_dists_s = np.copy(low_dists)
+        low_top_n_dists_s = np.zeros((l, high_ind.shape[1]))
+        for t in range(train_num, train_num+l, 1):
+            low_dists = np.linalg.norm(embedding[t]-embedding[high_ind[t]])
+            low_top_n_dists_s[t-train_num] = low_dists
+        high_top_n_dists_s = np.copy(high_dists[-l:])
         
         high_top_n_dists = np.concatenate((high_top_n_dists_t, high_top_n_dists_s), axis=1)
         low_top_n_dists = np.concatenate((low_top_n_dists_t, low_top_n_dists_s), axis=1)
-        high_ranks = np.argsort(high_top_n_dists)
-        low_ranks = np.argsort(low_top_n_dists)
-        tau_l = evaluate_proj_temporal_temporal_corr(high_rank=high_ranks, low_rank=low_ranks)
+        # high_ranks = np.argsort(high_top_n_dists)
+        # low_ranks = np.argsort(low_top_n_dists)
+        # tau_l = evaluate_proj_temporal_temporal_corr(high_rank=high_ranks, low_rank=low_ranks)
+        # keep top k neighbors
+        # high_ranks = np.argsort(high_top_n_dists)
+        # low_ranks = np.argsort(low_top_n_dists)
+        # tau_l = evaluate_proj_temporal_temporal_corr(high_rank=high_ranks, low_rank=low_ranks)
+        # find the index of top k dists
+        high_orders = np.argsort(high_top_n_dists, axis=1)
+        low_orders = np.argsort(low_top_n_dists, axis=1)
+        high_rankings = np.zeros((high_orders.shape[0], n_neighbors), dtype=int)
+        low_rankings = np.zeros((low_orders.shape[0], n_neighbors), dtype=int)
+        for i in range(len(high_orders)):
+            high_rankings[i] = np.argwhere(high_orders[i]<n_neighbors).squeeze()
+            low_rankings[i] = np.argwhere(low_orders[i]<n_neighbors).squeeze()
+        corr = np.zeros(len(high_rankings))
+        for i in range(len(high_rankings)):
+            corr[i] = len(np.intersect1d(high_rankings[i], low_rankings[i]))
     
         if self.verbose:
-            print("Spatial/Temporal ranking preserving (test) for {}-th epoch {}:\t{:.3f}".format(epoch, n_neighbors, tau_l.mean()))
-        return float(tau_l.mean())
+            print("Spatial/Temporal ranking preserving (test) for {}-th epoch {}:\t{:.3f}".format(epoch, n_neighbors, corr.mean()))
+        return float(corr.mean())
 
 
     def eval_temporal_corr_train(self, n_grain=1):
