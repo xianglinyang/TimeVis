@@ -215,7 +215,7 @@ def compute_cross_entropy(
     return attraction_term, repellent_term, CE
 
 
-def construct_temporal_edge_dataset(X, time_step_nums, time_step_idxs_list, n_epochs, persistent, time_steps, knn_indices, sigmas, rhos, k=15):
+def construct_temporal_complex(X, time_step_nums, time_step_idxs_list, persistent, time_steps, knn_indices, sigmas, rhos, k=15):
     """
     construct temporal edges based on same data
     link data to its next epoch
@@ -291,16 +291,13 @@ def construct_temporal_edge_dataset(X, time_step_nums, time_step_idxs_list, n_ep
             rows = np.concatenate((rows, rows_t[idxs]), axis=0)
             cols = np.concatenate((cols, cols_t[idxs]), axis=0)
             vals = np.concatenate((vals, vals_t[idxs]), axis=0)
-    
-    # normalize for symmetry reason
     time_complex = spatio_temporal_simplicial_set(rows=rows, cols=cols, vals=vals, n_vertice=len(X))
-    _, rows, cols, vals, _ = get_graph_elements(time_complex, n_epochs=n_epochs)
-
-    return rows, cols, vals
+    
+    return time_complex
 
 
 # construct spatio-temporal complex and get edges
-def construct_spatial_temporal_complex_random(data_provider, init_num, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT):
+def construct_spatial_temporal_complex_random(data_provider, init_num, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT):
     # dummy input
     edge_to = None
     edge_from = None
@@ -372,15 +369,16 @@ def construct_spatial_temporal_complex_random(data_provider, init_num, TIME_STEP
             time_step_nums.append((t_num, b_num))
 
     # boundary points...
-    heads, tails, vals = construct_temporal_edge_dataset(X=feature_vectors,
-                                                        time_step_nums=time_step_nums,
-                                                        time_step_idxs_list = time_step_idxs_list,
-                                                        n_epochs=NUMS,
-                                                        persistent=TEMPORAL_PERSISTENT,
-                                                        time_steps=TIME_STEPS,
-                                                        knn_indices=knn_indices,
-                                                        sigmas=sigmas,
-                                                        rhos=rhos)
+    time_complex = construct_temporal_complex(X=feature_vectors,
+                                            time_step_nums=time_step_nums,
+                                            time_step_idxs_list = time_step_idxs_list,
+                                            persistent=TEMPORAL_PERSISTENT,
+                                            time_steps=TIME_STEPS,
+                                            knn_indices=knn_indices,
+                                            sigmas=sigmas,
+                                            rhos=rhos)
+    # normalize for symmetry reason
+    _, heads, tails, vals, _ = get_graph_elements(time_complex, n_epochs=NUMS)
 
     weight = np.concatenate((weight, vals), axis=0)
     probs_t = vals / (vals.max() + 1e-4)
@@ -392,7 +390,7 @@ def construct_spatial_temporal_complex_random(data_provider, init_num, TIME_STEP
 
 
 # construct spatio-temporal complex and get edges
-def construct_spatial_temporal_complex_kc(data_provider, init_num, MAX_HAUSDORFF, ALPHA, BETA, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT, TEMPORAL_EDGE_WEIGHT):
+def construct_spatial_temporal_complex_kc(data_provider, init_num, MAX_HAUSDORFF, ALPHA, BETA, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT):
     # dummy input
     edge_to = None
     edge_from = None
@@ -491,20 +489,17 @@ def construct_spatial_temporal_complex_kc(data_provider, init_num, MAX_HAUSDORFF
             time_step_nums.insert(0, (t_num, b_num))
 
     # boundary points...
-    heads, tails, vals = construct_temporal_edge_dataset(X=feature_vectors,
-                                                        time_step_nums=time_step_nums,
-                                                        time_step_idxs_list=time_step_idxs_list,
-                                                        persistent=TEMPORAL_PERSISTENT,
-                                                        time_steps=TIME_STEPS,
-                                                        knn_indices=knn_indices,
-                                                        sigmas=sigmas,
-                                                        rhos=rhos)
-    # TODO: add fuzzy temporal edges
-    # remove elements with very low probability
-    eliminate_idxs = (vals < 1e-2)
-    heads = heads[eliminate_idxs]
-    tails = tails[eliminate_idxs]
-    vals = vals[eliminate_idxs]
+    time_complex = construct_temporal_complex(X=feature_vectors,
+                                            time_step_nums=time_step_nums,
+                                            time_step_idxs_list = time_step_idxs_list,
+                                            persistent=TEMPORAL_PERSISTENT,
+                                            time_steps=TIME_STEPS,
+                                            knn_indices=knn_indices,
+                                            sigmas=sigmas,
+                                            rhos=rhos)
+    # normalize for symmetry reason
+    _, heads, tails, vals, _ = get_graph_elements(time_complex, n_epochs=NUMS)
+
     # increase weight of temporal edges
     # strenthen_neighbor = npr[heads]
     weight = np.concatenate((weight, vals), axis=0)
