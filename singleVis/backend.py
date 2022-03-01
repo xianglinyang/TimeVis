@@ -59,7 +59,7 @@ def get_graph_elements(graph_, n_epochs):
         else:
             n_epochs = 200
     # remove elements with very low probability
-    graph.data[graph.data < (graph.data.max() / float(n_epochs))] = 0.0
+    graph.data[graph.data < (graph.data.max() / float(n_epochs)) + 1e-3] = 0.0
     graph.eliminate_zeros()
 
     head = graph.row
@@ -381,18 +381,6 @@ def construct_spatial_temporal_complex_random(data_provider, init_num, TIME_STEP
                                                         knn_indices=knn_indices,
                                                         sigmas=sigmas,
                                                         rhos=rhos)
-    #TODO: fuzzing temporal edges weights, see fuzzy_complex construction
-
-    # complex = spatio_temporal_simplicial_set(rows=heads, cols=tails, vals=vals, n_vertice= )
-    # get_graph_elements(complex, 5)
-
-    # remove elements with very low probability
-    eliminate_idxs = (vals < 1e-2)
-    heads = heads[eliminate_idxs]
-    tails = tails[eliminate_idxs]
-    vals = vals[eliminate_idxs]
-    # increase weight of temporal edges
-    vals = vals*TEMPORAL_EDGE_WEIGHT
 
     weight = np.concatenate((weight, vals), axis=0)
     probs_t = vals / (vals.max() + 1e-4)
