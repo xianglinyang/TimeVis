@@ -604,7 +604,7 @@ def construct_spatial_temporal_complex_kc_tnn(data_provider, init_num, MAX_HAUSD
     train_num = data_provider.train_num
     selected_idxs = np.random.choice(np.arange(train_num), size=init_num, replace=False)
 
-    baseline_data = data_provider.train_representation(TIME_STEPS)
+    baseline_data = data_provider.train_representation(EPOCH_END)
     max_x = np.linalg.norm(baseline_data, axis=1).max()
     baseline_data = baseline_data/max_x
     
