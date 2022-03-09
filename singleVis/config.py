@@ -13,6 +13,9 @@ dataset_config = {
         "ALPHA":0,
         "BETA":.1,
         "INIT_NUM":300,
+        "EPOCH_START": 1,
+        "EPOCH_END": 11,
+        "EPOCH_PERIOD": 1,
         "training_config":{
             "EPOCH_NUM": 6,
             "TIME_STEPS": 11,
@@ -33,6 +36,9 @@ dataset_config = {
         "ALPHA":0,
         "BETA":1,
         "INIT_NUM":300,
+        "EPOCH_START": 1,
+        "EPOCH_END": 11,
+        "EPOCH_PERIOD": 1,
         "training_config":{
             "EPOCH_NUM": 6,
             "TIME_STEPS": 10,
@@ -53,6 +59,9 @@ dataset_config = {
         "ALPHA":1,
         "BETA":1,
         "INIT_NUM":300,
+        "EPOCH_START": 1,
+        "EPOCH_END": 11,
+        "EPOCH_PERIOD": 1,
         "training_config":{
             "EPOCH_NUM": 6,
             "TIME_STEPS": 10,
@@ -72,6 +81,9 @@ dataset_config = {
         "ALPHA":1,# 1
         "BETA":1,#1
         "INIT_NUM":300,
+        "EPOCH_START": 1,
+        "EPOCH_END": 20,
+        "EPOCH_PERIOD": 1,
         "training_config":{
             "EPOCH_NUM": 20,
             "TIME_STEPS": 20,
@@ -94,6 +106,9 @@ dataset_config = {
         "ALPHA":2,
         "BETA":1.3,
         "INIT_NUM":300,
+        "EPOCH_START": 1,
+        "EPOCH_END": 10,
+        "EPOCH_PERIOD": 1,
         "training_config":{
             "EPOCH_NUM": 10,
             "TIME_STEPS": 10,
@@ -116,6 +131,9 @@ dataset_config = {
         "ALPHA":2,
         "BETA":1.3,
         "INIT_NUM":300,
+        "EPOCH_START": 1,
+        "EPOCH_END": 50,
+        "EPOCH_PERIOD": 1,
         "training_config":{
             "EPOCH_NUM": 8,
             "TIME_STEPS": 50,
@@ -135,6 +153,9 @@ dataset_config = {
         "ALPHA":1,#0
         "BETA":1,#.1
         "INIT_NUM":300,
+        "EPOCH_START": 2,
+        "EPOCH_END": 200,
+        "EPOCH_PERIOD": 4,
         "training_config":{
             "EPOCH_NUM": 6,
             "TIME_STEPS": 200,

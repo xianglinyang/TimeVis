@@ -299,7 +299,7 @@ def construct_temporal_complex(X, time_step_nums, time_step_idxs_list, persisten
 
 
 
-def construct_temporal_complex_tnn(X, time_step_nums, time_steps,  sigmas, rhos, n_neighbors=5):
+def construct_temporal_complex_tnn(X, time_step_nums, time_steps, sigmas, rhos, n_neighbors=5):
     """
     construct temporal edges, connect each sample to its nearest temporal neighbors
     :param X: feature vectors, ((train_num+b_num), feature_dim)
@@ -332,7 +332,6 @@ def construct_temporal_complex_tnn(X, time_step_nums, time_steps,  sigmas, rhos,
     indices = - np.ones((num, n_neighbors), dtype=int)
     dists = np.zeros((num, n_neighbors), dtype=np.float32)
 
-    # TODO fix time_steps into start,end,period
     for time_step in range(time_steps):
         start_idx = base_idx_list[time_step]
         end_idx = start_idx + time_step_nums[time_step][0]
@@ -362,7 +361,7 @@ def construct_temporal_complex_tnn(X, time_step_nums, time_steps,  sigmas, rhos,
 
 
 # construct spatio-temporal complex and get edges
-def construct_spatial_temporal_complex_random(data_provider, init_num, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT):
+def construct_spatial_temporal_complex_random(data_provider, init_num, EPOCH_START, EPOCH_END, EPOCH_PERIOD, NUMS, TEMPORAL_PERSISTENT):
     # dummy input
     edge_to = None
     edge_from = None
@@ -381,7 +380,7 @@ def construct_spatial_temporal_complex_random(data_provider, init_num, TIME_STEP
     selected_idxs_t = np.array(range(len(selected_idxs)))
 
     # each time step
-    for t in range(1, TIME_STEPS+1, 1):
+    for t in range(EPOCH_START, EPOCH_END+1, EPOCH_PERIOD):
         # load train data and border centers
         train_data = data_provider.train_representation(t).squeeze()
         _, _ = hausdorff_dist_cus(train_data, selected_idxs)
@@ -434,11 +433,12 @@ def construct_spatial_temporal_complex_random(data_provider, init_num, TIME_STEP
             time_step_nums.append((t_num, b_num))
 
     # boundary points...
+    time_steps = (EPOCH_END - EPOCH_START) // EPOCH_PERIOD + 1
     time_complex = construct_temporal_complex(X=feature_vectors,
                                             time_step_nums=time_step_nums,
                                             time_step_idxs_list = time_step_idxs_list,
                                             persistent=TEMPORAL_PERSISTENT,
-                                            time_steps=TIME_STEPS,
+                                            time_steps=time_steps,
                                             knn_indices=knn_indices,
                                             sigmas=sigmas,
                                             rhos=rhos)
@@ -455,7 +455,7 @@ def construct_spatial_temporal_complex_random(data_provider, init_num, TIME_STEP
 
 
 # construct spatio-temporal complex and get edges
-def construct_spatial_temporal_complex_kc(data_provider, init_num, MAX_HAUSDORFF, ALPHA, BETA, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT):
+def construct_spatial_temporal_complex_kc(data_provider, init_num, MAX_HAUSDORFF, ALPHA, BETA, EPOCH_START, EPOCH_END, EPOCH_PERIOD, NUMS, TEMPORAL_PERSISTENT):
     # dummy input
     edge_to = None
     edge_from = None
@@ -484,7 +484,7 @@ def construct_spatial_temporal_complex_kc(data_provider, init_num, MAX_HAUSDORFF
     c0,d0,_ = get_unit(baseline_data)
 
     # each time step
-    for t in range(TIME_STEPS, 0, -1):
+    for t in range(EPOCH_END, EPOCH_START - 1, -EPOCH_PERIOD):
         print("=================+++={:d}=+++================".format(t))
         # load train data and border centers
         train_data = data_provider.train_representation(t).squeeze()
@@ -554,11 +554,12 @@ def construct_spatial_temporal_complex_kc(data_provider, init_num, MAX_HAUSDORFF
             time_step_nums.insert(0, (t_num, b_num))
 
     # boundary points...
+    time_steps = (EPOCH_END - EPOCH_START) // EPOCH_PERIOD + 1
     time_complex = construct_temporal_complex(X=feature_vectors,
                                             time_step_nums=time_step_nums,
                                             time_step_idxs_list = time_step_idxs_list,
                                             persistent=TEMPORAL_PERSISTENT,
-                                            time_steps=TIME_STEPS,
+                                            time_steps=time_steps,
                                             knn_indices=knn_indices,
                                             sigmas=sigmas,
                                             rhos=rhos)
@@ -581,7 +582,7 @@ def construct_spatial_temporal_complex_kc(data_provider, init_num, MAX_HAUSDORFF
 
 
 # construct spatio-temporal complex and get edges
-def construct_spatial_temporal_complex_kc_tnn(data_provider, init_num, MAX_HAUSDORFF, ALPHA, BETA, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT):
+def construct_spatial_temporal_complex_kc_tnn(data_provider, init_num, MAX_HAUSDORFF, ALPHA, BETA, EPOCH_START, EPOCH_END, EPOCH_PERIOD, NUMS, TEMPORAL_PERSISTENT):
     # dummy input
     edge_to = None
     edge_from = None
@@ -610,7 +611,7 @@ def construct_spatial_temporal_complex_kc_tnn(data_provider, init_num, MAX_HAUSD
     c0,d0,_ = get_unit(baseline_data)
 
     # each time step
-    for t in range(TIME_STEPS, 0, -1):
+    for t in range(EPOCH_END, EPOCH_START - 1, -EPOCH_PERIOD):
         print("=================+++={:d}=+++================".format(t))
         # load train data and border centers
         train_data = data_provider.train_representation(t).squeeze()
@@ -692,9 +693,10 @@ def construct_spatial_temporal_complex_kc_tnn(data_provider, init_num, MAX_HAUSD
             time_step_nums.insert(0, (t_num, b_num))
 
     # boundary points...
+    time_steps = (EPOCH_END - EPOCH_START) // EPOCH_PERIOD + 1
     time_complex = construct_temporal_complex_tnn(X=feature_vectors,
                                                 time_step_nums=time_step_nums,
-                                                time_steps=TIME_STEPS,
+                                                time_steps=time_steps,
                                                 sigmas=sigmas,
                                                 rhos=rhos)
     # normalize for symmetry reason
