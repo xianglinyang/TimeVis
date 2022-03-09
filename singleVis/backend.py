@@ -2,6 +2,7 @@
 backend APIs for Single Visualization model trainer
 """
 # import modules
+import os
 import json
 import torch
 import time
@@ -13,7 +14,7 @@ from scipy.special import softmax
 from umap.umap_ import fuzzy_simplicial_set, compute_membership_strengths
 from pynndescent import NNDescent
 from sklearn.utils import check_random_state
-from sklearn.neighbors import KDTree
+from sklearn.neighbors import KDTree, NearestNeighbors
 
 from singleVis.utils import hausdorff_dist_cus, jaccard_similarity, knn, hausdorff_dist
 from singleVis.kcenter_greedy import kCenterGreedy
@@ -142,13 +143,14 @@ def construct_step_edge_dataset(vr_complex, bw_complex, n_epochs):
     # get data from graph
     _, vr_head, vr_tail, vr_weight, _ = get_graph_elements(vr_complex, n_epochs)
     # get data from graph
-    _, bw_head, bw_tail, bw_weight, _ = get_graph_elements(bw_complex, n_epochs)
+    _, bw_head, bw_tail, bw_weight, _ = get_graph_elements(bw_complex, 1)
 
     head = np.concatenate((vr_head, bw_head), axis=0)
     tail = np.concatenate((vr_tail, bw_tail), axis=0)
     weight = np.concatenate((vr_weight, bw_weight), axis=0)
 
     return head, tail, weight
+    # return vr_head, vr_tail, vr_weight
 
 
 def knn_dists(X, indices, knn_indices):
@@ -291,6 +293,69 @@ def construct_temporal_complex(X, time_step_nums, time_step_idxs_list, persisten
             rows = np.concatenate((rows, rows_t[idxs]), axis=0)
             cols = np.concatenate((cols, cols_t[idxs]), axis=0)
             vals = np.concatenate((vals, vals_t[idxs]), axis=0)
+    time_complex = spatio_temporal_simplicial_set(rows=rows, cols=cols, vals=vals, n_vertice=len(X))
+    
+    return time_complex
+
+
+
+def construct_temporal_complex_tnn(X, time_step_nums, time_steps,  sigmas, rhos, n_neighbors=5):
+    """
+    construct temporal edges, connect each sample to its nearest temporal neighbors
+    :param X: feature vectors, ((train_num+b_num), feature_dim)
+    :param time_step_nums: [(train_num, b_num)]
+    :param time_steps: the number of time steps we are looking at
+    :param sigma: shape ((train_num+b_num), feature_dim)
+    :param rhos: shape ((train_num+b_num), feature_dim)
+    :param n_neighbors: the number of temporal neighbors we are looking at
+    :return:
+    """
+    rows = np.zeros(1, dtype=np.int32)
+    cols = np.zeros(1, dtype=np.int32)
+    vals = np.zeros(1, dtype=np.float32)
+
+    base_idx = 0
+    base_idx_list = list()
+    for i in time_step_nums:
+        base_idx_list.append(base_idx)
+        base_idx = base_idx + i[0] + i[1]
+    base_idx_list = np.array(base_idx_list, dtype=int)
+
+    valid_idx_list = list()
+    for i in range(len(time_step_nums)):
+        valid_idx_list.append(base_idx_list[i]+time_step_nums[i][0])
+    valid_idx_list = np.array(valid_idx_list, dtype=int)
+    
+    num = len(X)
+
+    # placeholder for knn_indices and knn_dists
+    indices = - np.ones((num, n_neighbors), dtype=int)
+    dists = np.zeros((num, n_neighbors), dtype=np.float32)
+
+    # TODO fix time_steps into start,end,period
+    for time_step in range(time_steps):
+        start_idx = base_idx_list[time_step]
+        end_idx = start_idx + time_step_nums[time_step][0]
+        # move_positions = [i - start_idx for i in base_idx_list]
+        move_positions = base_idx_list - start_idx
+        for train_sample_idx in range(start_idx, end_idx + 1, 1):
+            # candidate_idxs = [train_sample_idx + i for i in move_positions if train_sample_idx + i < valid_idx]
+            candidate_idxs = train_sample_idx + move_positions
+            candidate_idxs = candidate_idxs[np.logical_and(candidate_idxs>=base_idx_list, candidate_idxs<valid_idx_list)]
+            nn_dist = knn_dists(X, [train_sample_idx], candidate_idxs).squeeze(axis=0)
+            # find top k
+            order = np.argsort(nn_dist)
+            # deal with if len(candidate_idxs)<n_neighbors situation
+            top_k_idxs = candidate_idxs[order<n_neighbors]
+            top_k_idxs = np.pad(top_k_idxs, (0, n_neighbors-len(top_k_idxs)), 'constant', constant_values=-1).astype('int')
+            top_k_dists = nn_dist[order<n_neighbors]
+            top_k_dists = np.pad(top_k_dists, (0, n_neighbors-len(top_k_dists)), 'constant', constant_values=0.).astype(np.float32)
+
+            indices[train_sample_idx] = top_k_idxs
+            dists[train_sample_idx] = top_k_dists
+
+    rows, cols, vals, _ = compute_membership_strengths(indices, dists, sigmas, rhos, return_dists=False)
+    # build time complex
     time_complex = spatio_temporal_simplicial_set(rows=rows, cols=cols, vals=vals, n_vertice=len(X))
     
     return time_complex
@@ -515,13 +580,147 @@ def construct_spatial_temporal_complex_kc(data_provider, init_num, MAX_HAUSDORFF
     return edge_to, edge_from, probs, feature_vectors, attention
 
 
+# construct spatio-temporal complex and get edges
+def construct_spatial_temporal_complex_kc_tnn(data_provider, init_num, MAX_HAUSDORFF, ALPHA, BETA, TIME_STEPS, NUMS, TEMPORAL_PERSISTENT):
+    # dummy input
+    edge_to = None
+    edge_from = None
+    sigmas = None
+    rhos = None
+    weight = None
+    probs = None
+    feature_vectors = None
+    attention = None
+    knn_indices = None
+    time_step_nums = list()
+    time_step_idxs_list = list()
+
+    # train_num = data_provider.train_num
+    # selected_idxs = np.random.choice(np.arange(train_num), size=int(train_num * 0.01), replace=False)
+    # init_num = 2000
+    # target_num = int(math.pow(0.9,(TIME_STEPS))*init_num)
+
+    train_num = data_provider.train_num
+    selected_idxs = np.random.choice(np.arange(train_num), size=init_num, replace=False)
+
+    baseline_data = data_provider.train_representation(TIME_STEPS)
+    max_x = np.linalg.norm(baseline_data, axis=1).max()
+    baseline_data = baseline_data/max_x
+    
+    c0,d0,_ = get_unit(baseline_data)
+
+    # each time step
+    for t in range(TIME_STEPS, 0, -1):
+        print("=================+++={:d}=+++================".format(t))
+        # load train data and border centers
+        train_data = data_provider.train_representation(t).squeeze()
+
+        # select highly used border centers...
+        border_centers = data_provider.border_representation(t).squeeze()
+        neigh = NearestNeighbors(n_neighbors=15, radius=0.4)
+        neigh.fit(border_centers)
+        high_ind = neigh.kneighbors(train_data, 15, return_distance=False)
+        selected_borders = np.bincount(high_ind.reshape(-1), minlength=len(border_centers))>100
+        border_centers = border_centers[selected_borders]
+
+        # normalize data by max ||x||_2
+        max_x = np.linalg.norm(train_data, axis=1).max()
+        train_data = train_data/max_x
+
+        # get normalization parameters for different epochs
+        c,d,_ = get_unit(train_data)
+        c_c0 = math.pow(c/c0, BETA)
+        d_d0 = math.pow(d/d0, ALPHA)
+        print("Finish calculating normaling factor")
+
+        kc = kCenterGreedy(train_data)
+        _ = kc.select_batch_with_cn(selected_idxs, MAX_HAUSDORFF, c_c0, d_d0/2, p=0.95)
+        selected_idxs = kc.already_selected.astype("int")
+
+        save_dir = os.path.join(data_provider.content_path, "selected_idxs")
+        if not os.path.exists(save_dir):
+            os.mkdir(save_dir)
+        with open(os.path.join(save_dir,"selected_{}.json".format(t)), "w") as f:
+            json.dump(selected_idxs.tolist(), f)
+        print("select {:d} points".format(len(selected_idxs)))
+
+        time_step_idxs_list.insert(0, np.arange(len(selected_idxs)).tolist())
+
+        train_data = data_provider.train_representation(t).squeeze()
+        train_data = train_data[selected_idxs]
+        
+
+        t_num = len(selected_idxs)
+        b_num = len(border_centers)
+
+        complex, sigmas_t1, rhos_t1, knn_idxs_t = fuzzy_complex(train_data, 15)
+        bw_complex, sigmas_t2, rhos_t2, _ = boundary_wise_complex(train_data, border_centers, 15)
+        edge_to_t, edge_from_t, weight_t = construct_step_edge_dataset(complex, bw_complex, NUMS)
+        sigmas_t = np.concatenate((sigmas_t1, sigmas_t2[len(sigmas_t1):]), axis=0)
+        rhos_t = np.concatenate((rhos_t1, rhos_t2[len(rhos_t1):]), axis=0)
+        fitting_data = np.concatenate((train_data, border_centers), axis=0)
+        pred_model = data_provider.prediction_function(t)
+        attention_t = get_attention(pred_model, fitting_data, temperature=.01, device=data_provider.DEVICE, verbose=1)
+
+        if edge_to is None:
+            edge_to = edge_to_t
+            edge_from = edge_from_t
+            weight = weight_t
+            probs = weight_t / weight_t.max()
+            feature_vectors = fitting_data
+            attention = attention_t
+            sigmas = sigmas_t
+            rhos = rhos_t
+            knn_indices = knn_idxs_t
+            # npr = npr_t
+            time_step_nums.insert(0, (t_num, b_num))
+        else:
+            # every round, we need to add len(data) to edge_to(as well as edge_from) index
+            increase_idx = len(fitting_data)
+            edge_to = np.concatenate((edge_to_t, edge_to + increase_idx), axis=0)
+            edge_from = np.concatenate((edge_from_t, edge_from + increase_idx), axis=0)
+            # normalize weight to be in range (0, 1)
+            weight = np.concatenate((weight_t, weight), axis=0)
+            probs_t = weight_t / weight_t.max()
+            probs = np.concatenate((probs_t, probs), axis=0)
+            sigmas = np.concatenate((sigmas_t, sigmas), axis=0)
+            rhos = np.concatenate((rhos_t, rhos), axis=0)
+            feature_vectors = np.concatenate((fitting_data, feature_vectors), axis=0)
+            attention = np.concatenate((attention_t, attention), axis=0)
+            knn_indices = np.concatenate((knn_idxs_t, knn_indices+increase_idx), axis=0)
+            # npr = np.concatenate((npr_t, npr), axis=0)
+            time_step_nums.insert(0, (t_num, b_num))
+
+    # boundary points...
+    time_complex = construct_temporal_complex_tnn(X=feature_vectors,
+                                                time_step_nums=time_step_nums,
+                                                time_steps=TIME_STEPS,
+                                                sigmas=sigmas,
+                                                rhos=rhos)
+    # normalize for symmetry reason
+    _, heads, tails, vals, _ = get_graph_elements(time_complex, n_epochs=20*NUMS)
+
+    # increase weight of temporal edges
+    # strenthen_neighbor = npr[heads]
+    weight = np.concatenate((weight, vals), axis=0)
+
+    probs_t = vals / (vals.max() + 1e-4)
+    # probs_t = probs_t*(1+strenthen_neighbor)
+    # probs_t = probs_t*TEMPORAL_EDGE_WEIGHT
+
+    probs = np.concatenate((probs, probs_t), axis=0)
+    edge_to = np.concatenate((edge_to, heads), axis=0)
+    edge_from = np.concatenate((edge_from, tails), axis=0)
+
+    return edge_to, edge_from, probs, feature_vectors, attention
+
+
 def spatio_temporal_simplicial_set(
         rows,
         cols,
         vals,
         n_vertice,
         set_op_mix_ratio=1.0,
-        local_connectivity=1.0,
         apply_set_operations=True):
     """
     Given the edges and edge weights, compute the simplicial set
