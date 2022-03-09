@@ -635,7 +635,7 @@ def construct_spatial_temporal_complex_kc_tnn(data_provider, init_num, MAX_HAUSD
         print("Finish calculating normaling factor")
 
         kc = kCenterGreedy(train_data)
-        _ = kc.select_batch_with_cn(selected_idxs, MAX_HAUSDORFF, c_c0, d_d0/2, p=0.95)
+        _ = kc.select_batch_with_cn(selected_idxs, MAX_HAUSDORFF, c_c0, d_d0, p=0.95)
         selected_idxs = kc.already_selected.astype("int")
 
         save_dir = os.path.join(data_provider.content_path, "selected_idxs")
