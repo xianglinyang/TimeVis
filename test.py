@@ -63,7 +63,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=.01, weight_decay=1e-5)
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=.1)
 
 trainer = SingleVisTrainer(model, criterion=criterion, optimizer=optimizer, lr_scheduler=lr_scheduler, edge_loader=None, DEVICE=DEVICE)
-trainer.load(file_path=os.path.join(data_provider.model_path,"test.pth"))
+trainer.load(file_path=os.path.join(data_provider.model_path,"tnn.pth"))
 
 ########################################################################################################################
 # visualization results
@@ -88,12 +88,17 @@ trainer.load(file_path=os.path.join(data_provider.model_path,"test.pth"))
 ########################################################################################################################
 from singleVis.eval.evaluator import Evaluator
 evaluator = Evaluator(data_provider, trainer)
-evaluator.save_eval(n_neighbors=10, file_name="test_evaluation")
+# evaluator.save_eval(n_neighbors=10, file_name="test_evaluation")
 # evaluator.save_eval(n_neighbors=15, file_name="test_evaluation")
-evaluator.save_eval(n_neighbors=30, file_name="test_evaluation")
+# evaluator.save_eval(n_neighbors=20, file_name="test_evaluation")
 # evaluator.eval_temporal_md_train(15)
 # evaluator.eval_temporal_md_test(15)
 # evaluator.eval_temporal_corr_train(n_grain=2)
 # evaluator.eval_temporal_corr_train(n_grain=2)
 # evaluator.eval_temporal_train(15)
 # evaluator.eval_temporal_test(15)
+evaluator.eval_spatial_temporal_nn_train(15, 512)
+evaluator.eval_spatial_temporal_nn_test(15, 512)
+# for epoch in range(1, 11, 1):
+    # evaluator.eval_temporal_nn_train(epoch, 3)
+    # evaluator.eval_temporal_nn_test(epoch, 3)
