@@ -373,8 +373,13 @@ class Evaluator:
             evaluation["ranking_train"][epoch] = dict()
             evaluation["ranking_test"][epoch] = dict()
             for k in [1,3,5,7]:
-                evaluation["ranking_train"][epoch][k] = self.eval_temporal_ranking_corr_train(epoch, k)
-                evaluation["ranking_test"][epoch][k] = self.eval_temporal_ranking_corr_test(epoch, k)
+                evaluation["ranking_train"][epoch][k] = self.eval_temporal_nn_train(epoch, k)
+                evaluation["ranking_test"][epoch][k] = self.eval_temporal_nn_test(epoch, k)
+            
+        train_val = self.eval_spatial_temporal_nn_train(n_neighbors,512)
+        evaluation[n_key]["st_nn_train"] = train_val
+        test_val = self.eval_spatial_temporal_nn_test(n_neighbors, 512)
+        evaluation[n_key]["st_nn_test"] = test_val
 
         t_train_val, t_train_std = self.eval_temporal_train(n_neighbors)
         evaluation[n_key]["temporal_train_mean"] = t_train_val
