@@ -5,95 +5,14 @@ import math
 import json
 from scipy.special import softmax
 
-from umap.umap_ import fuzzy_simplicial_set, compute_membership_strengths
+from umap.umap_ import fuzzy_simplicial_set
 from pynndescent import NNDescent
 from sklearn.neighbors import NearestNeighbors
 from sklearn.utils import check_random_state
 
 from singleVis.kcenter_greedy import kCenterGreedy
 from singleVis.intrinsic_dim import IntrinsicDim
-
-# helper functions
-def get_graph_elements(graph_, n_epochs):
-    """
-    gets elements of graphs, weights, and number of epochs per edge
-    Parameters
-    ----------
-    graph_ : scipy.sparse.csr.csr_matrix
-        umap graph of probabilities
-    n_epochs : int
-        maximum number of epochs per edge
-    Returns
-    -------
-    graph scipy.sparse.csr.csr_matrix
-        umap graph
-    epochs_per_sample np.array
-        number of epochs to train each sample for
-    head np.array
-        edge head
-    tail np.array
-        edge tail
-    weight np.array
-        edge weight
-    n_vertices int
-        number of verticies in graph
-    """
-    ### should we remove redundancies () here??
-    # graph_ = remove_redundant_edges(graph_)
-
-    graph = graph_.tocoo()
-    # eliminate duplicate entries by summing them together
-    graph.sum_duplicates()
-    # number of vertices in dataset
-    n_vertices = graph.shape[1]
-    # # get the number of epochs based on the size of the dataset
-    if n_epochs is None:
-        # For smaller datasets we can use more epochs
-        if graph.shape[0] <= 10000:
-            n_epochs = 500
-        else:
-            n_epochs = 200
-    # remove elements with very low probability
-    graph.data[graph.data < (graph.data.max() / float(n_epochs)) + 1e-3] = 0.0
-    graph.eliminate_zeros()
-
-    head = graph.row
-    tail = graph.col
-    weight = graph.data
-
-    return graph, head, tail, weight, n_vertices
-
-def get_attention(model, data, device, temperature=.01, verbose=1):
-    t0 = time.time()
-    grad_list = []
-
-    for i in range(len(data)):
-        b = torch.from_numpy(data[i:i + 1]).to(device=device, dtype=torch.float)
-        b.requires_grad = True
-        out = model(b)
-        top1 = torch.argsort(out)[0][-1]
-        out[0][top1].backward()
-        grad_list.append(b.grad.data.detach().cpu().numpy())
-    grad_list2 = []
-
-    for i in range(len(data)):
-        b = torch.from_numpy(data[i:i + 1]).to(device=device, dtype=torch.float)
-        b.requires_grad = True
-        out = model(b)
-        top2 = torch.argsort(out)[0][-2]
-        out[0][top2].backward()
-        grad_list2.append(b.grad.data.detach().cpu().numpy())
-    t1 = time.time()
-    grad1 = np.array(grad_list)
-    grad2 = np.array(grad_list2)
-    grad1 = grad1.squeeze(axis=1)
-    grad2 = grad2.squeeze(axis=1)
-    grad = np.abs(grad1) + np.abs(grad2)
-    grad = softmax(grad/temperature, axis=1)
-    t2 = time.time()
-    if verbose:
-        print("Gradients calculation: {:.2f} seconds\tsoftmax with temperature: {:.2f} seconds".format(round(t1-t0), round(t2-t1)))
-    return grad
+from singleVis.backend import get_graph_elements, get_attention
 
 
 '''Base class for Spatial Edge Constructor'''

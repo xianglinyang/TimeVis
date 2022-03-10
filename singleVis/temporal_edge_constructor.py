@@ -3,6 +3,8 @@ import scipy
 
 from umap.umap_ import compute_membership_strengths
 
+from singleVis.backend import get_graph_elements
+
 
 # helper functions
 def knn_dists(X, indices, knn_indices):
@@ -14,7 +16,7 @@ def knn_dists(X, indices, knn_indices):
 '''Base class for complex edges constructor'''
 class TemporalEdgeConstructor:
   
-    def __init__(self, X, time_step_nums, sigmas, rhos, n_neighbors) -> None:
+    def __init__(self, X, time_step_nums, sigmas, rhos, n_neighbors, n_epochs) -> None:
         """Init Parameters for Temporal Edge Constructor
 
         Parameters
@@ -29,6 +31,7 @@ class TemporalEdgeConstructor:
             the rhos of all feature vectors
         n_neighbors : int
             locally connectivity
+        n_epochs: int
         """
         self.features = X
         self.time_step_nums = time_step_nums
@@ -36,6 +39,7 @@ class TemporalEdgeConstructor:
         self.sigmas = sigmas
         self.rhos = rhos
         self.n_neighbors = n_neighbors
+        self.n_epochs = n_epochs
     
     def temporal_simplicial_set(
         self,
@@ -113,7 +117,7 @@ Strategies:
 """
 
 class LocalTemporalEdgeConstructor(TemporalEdgeConstructor):
-    def __init__(self, X, time_step_nums, sigmas, rhos, n_neighbors, persistent, time_step_idxs_list, knn_indices) -> None:
+    def __init__(self, X, time_step_nums, sigmas, rhos, n_neighbors, n_epochs, persistent, time_step_idxs_list, knn_indices) -> None:
         """
         construct temporal edges based on same data
         link data to its next epoch
@@ -137,7 +141,7 @@ class LocalTemporalEdgeConstructor(TemporalEdgeConstructor):
         knn_indices : ndarray, shape (N, n_neighbors)
             the knn indices of samples in each time step
         """
-        super().__init__(X, time_step_nums, sigmas, rhos, n_neighbors)
+        super().__init__(X, time_step_nums, sigmas, rhos, n_neighbors, n_epochs)
         self.persistence = persistent
         self.time_step_idxs_list = time_step_idxs_list
         self.knn_indices = knn_indices
@@ -217,15 +221,19 @@ class LocalTemporalEdgeConstructor(TemporalEdgeConstructor):
                 cols = np.concatenate((cols, cols_t[idxs]), axis=0)
                 vals = np.concatenate((vals, vals_t[idxs]), axis=0)
         time_complex = self.temporal_simplicial_set(rows=rows, cols=cols, vals=vals, n_vertice=len(self.features))
+
+        # normalize for symmetry reason
+        _, heads, tails, weights, _ = get_graph_elements(time_complex, n_epochs=self.n_epochs)
+        weights = weights / (weights.max() + 1e-4)
         
-        return time_complex
+        return heads, tails, weights
 
 
 
 
 class GlobalTemporalEdgeConstructor(TemporalEdgeConstructor):
-    def __init__(self, X, time_step_nums, sigmas, rhos, n_neighbors) -> None:
-        super().__init__(X, time_step_nums, sigmas, rhos, n_neighbors)
+    def __init__(self, X, time_step_nums, sigmas, rhos, n_neighbors, n_epochs) -> None:
+        super().__init__(X, time_step_nums, sigmas, rhos, n_neighbors, n_epochs)
     
     def construct(self):
         rows = np.zeros(1, dtype=np.int32)
@@ -274,4 +282,8 @@ class GlobalTemporalEdgeConstructor(TemporalEdgeConstructor):
         rows, cols, vals, _ = compute_membership_strengths(indices, dists, self.sigmas, self.rhos, return_dists=False)
         # build time complex
         time_complex = self.temporal_simplicial_set(rows=rows, cols=cols, vals=vals, n_vertice=num)
-        return time_complex
+        # normalize for symmetry reason
+        _, heads, tails, weights, _ = get_graph_elements(time_complex, n_epochs=self.n_epochs)
+        weights = weights / (weights.max() + 1e-4)
+
+        return heads, tails, weights

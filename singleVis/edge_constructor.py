@@ -1,11 +1,9 @@
-from msilib.schema import Error
-import singleVis.spatial_edge_constructor as spat
-import singleVis.temporal_edge_constructor as temp
+import numpy as np
 
 
 class EdgesConstructor(object):
 
-    def __init__(self, data_provider, init_num, n_epochs, spatial="kc", temporal="global") -> None:
+    def __init__(self, data_provider, init_num, n_epochs, spatial_constructor, temporal_constructor) -> None:
         """
         This class is the Base class for complex edge constructor
 
@@ -27,21 +25,8 @@ class EdgesConstructor(object):
         self.data_provider = data_provider
         self.init_num = init_num
         self.n_epochs = n_epochs
-        # initialize spatial and temporal edge constructor
-        if spatial == "kc":
-            self.spatial_cons = spat.kcSpatialEdgeConstructor()
-        elif spatial == "random":
-            self.spatial_cons = spat.RandomSpatialEdgeConstructor()
-        else:
-            raise NotImplemented("Strategy {} not implemented!".format(spatial))
-
-        if temporal == "local":
-            self.temporal_cons = temp.LocalTemporalEdgeConstructor()
-        elif temporal == "global":
-            self.temporal_cons = temp.GlobalTemporalEdgeConstructor()
-        else:
-            raise NotImplemented("Strategy {} not implemented!".format(temporal))
-
+        self.spatial_constructor = spatial_constructor
+        self.temporal_constructor = temporal_constructor
     
     def construct(self):
         return NotImplemented
