@@ -224,7 +224,6 @@ class LocalTemporalEdgeConstructor(TemporalEdgeConstructor):
 
         # normalize for symmetry reason
         _, heads, tails, weights, _ = get_graph_elements(time_complex, n_epochs=self.n_epochs)
-        weights = weights / (weights.max() + 1e-4)
         
         return heads, tails, weights
 
@@ -284,6 +283,5 @@ class GlobalTemporalEdgeConstructor(TemporalEdgeConstructor):
         time_complex = self.temporal_simplicial_set(rows=rows, cols=cols, vals=vals, n_vertice=num)
         # normalize for symmetry reason
         _, heads, tails, weights, _ = get_graph_elements(time_complex, n_epochs=self.n_epochs)
-        weights = weights / (weights.max() + 1e-4)
 
         return heads, tails, weights

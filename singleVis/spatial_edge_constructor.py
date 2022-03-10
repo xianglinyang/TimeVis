@@ -19,7 +19,7 @@ from singleVis.backend import get_graph_elements, get_attention
 class SpatialEdgeConstructor:
     '''Construct spatial complex
     '''
-    def __init__(self, data_provider, init_num, n_epochs, n_neighbors) -> None:
+    def __init__(self, data_provider, init_num, s_n_epochs, b_n_epochs, n_neighbors) -> None:
         """Init parameters for spatial edge constructor
 
         Parameters
@@ -28,15 +28,18 @@ class SpatialEdgeConstructor:
              data provider
         init_num : int
             init number to calculate c
-        n_epochs : int
+        s_n_epochs : int
             the number of epochs to fit for one iteration(epoch)
             e.g. n_epochs=5 means each edge will be sampled 5*prob times in one training epoch
+        b_n_epochs : int
+            the number of epochs to fit boundary samples for one iteration (epoch)
         n_neighbors: int
             local connectivity
         """
         self.data_provider = data_provider
         self.init_num = init_num
-        self.n_epochs = n_epochs
+        self.s_n_epochs = s_n_epochs
+        self.b_n_epochs = b_n_epochs
         self.n_neighbors = n_neighbors
     
     def _construct_fuzzy_complex(self, train_data):
@@ -103,9 +106,9 @@ class SpatialEdgeConstructor:
         :return: edge dataset
         """
         # get data from graph
-        _, vr_head, vr_tail, vr_weight, _ = get_graph_elements(vr_complex, self.n_epochs)
+        _, vr_head, vr_tail, vr_weight, _ = get_graph_elements(vr_complex, self.s_n_epochs)
         # get data from graph
-        _, bw_head, bw_tail, bw_weight, _ = get_graph_elements(bw_complex, 1)
+        _, bw_head, bw_tail, bw_weight, _ = get_graph_elements(bw_complex, self.b_n_epochs)
 
         head = np.concatenate((vr_head, bw_head), axis=0)
         tail = np.concatenate((vr_tail, bw_tail), axis=0)
@@ -125,8 +128,8 @@ Two strategies:
 '''
 
 class RandomSpatialEdgeConstructor(SpatialEdgeConstructor):
-    def __init__(self, data_provider, init_num, n_epochs) -> None:
-        super().__init__(data_provider, init_num, n_epochs)
+    def __init__(self, data_provider, init_num, s_n_epochs, b_n_epochs, n_neighbors) -> None:
+        super().__init__(data_provider, init_num, s_n_epochs, b_n_epochs, n_neighbors)
     
     def construct(self):
         # dummy input
@@ -217,12 +220,12 @@ class RandomSpatialEdgeConstructor(SpatialEdgeConstructor):
         # edge_to = np.concatenate((edge_to, heads), axis=0)
         # edge_from = np.concatenate((edge_from, tails), axis=0)
 
-        return edge_to, edge_from, probs, feature_vectors, time_step_nums, time_step_idxs_list, knn_indices , sigmas, rhos, attention
+        return edge_to, edge_from, weight, feature_vectors, time_step_nums, time_step_idxs_list, knn_indices , sigmas, rhos, attention
     
 
 class kcSpatialEdgeConstructor(SpatialEdgeConstructor):
-    def __init__(self, data_provider, init_num, n_epochs, n_neighbors, MAX_HAUSDORFF, ALPHA, BETA) -> None:
-        super().__init__(data_provider, init_num, n_epochs, n_neighbors)
+    def __init__(self, data_provider, init_num, s_n_epochs, b_n_epochs, n_neighbors, MAX_HAUSDORFF, ALPHA, BETA) -> None:
+        super().__init__(data_provider, init_num, s_n_epochs, b_n_epochs, n_neighbors)
         self.MAX_HAUSDORFF = MAX_HAUSDORFF
         self.ALPHA = ALPHA
         self.BETA = BETA
@@ -306,8 +309,8 @@ class kcSpatialEdgeConstructor(SpatialEdgeConstructor):
             t_num = len(selected_idxs)
             b_num = len(border_centers)
 
-            complex, sigmas_t1, rhos_t1, knn_idxs_t = self._fuzzy_complex(train_data)
-            bw_complex, sigmas_t2, rhos_t2, _ = self._boundary_wise_complex(train_data, border_centers)
+            complex, sigmas_t1, rhos_t1, knn_idxs_t = self._construct_fuzzy_complex(train_data)
+            bw_complex, sigmas_t2, rhos_t2, _ = self._construct_boundary_wise_complex(train_data, border_centers)
             edge_to_t, edge_from_t, weight_t = self._construct_step_edge_dataset(complex, bw_complex)
             sigmas_t = np.concatenate((sigmas_t1, sigmas_t2[len(sigmas_t1):]), axis=0)
             rhos_t = np.concatenate((rhos_t1, rhos_t2[len(rhos_t1):]), axis=0)
@@ -368,4 +371,4 @@ class kcSpatialEdgeConstructor(SpatialEdgeConstructor):
         # edge_to = np.concatenate((edge_to, heads), axis=0)
         # edge_from = np.concatenate((edge_from, tails), axis=0)
 
-        return edge_to, edge_from, probs, feature_vectors, time_step_nums, time_step_idxs_list, knn_indices, sigmas, rhos, attention
+        return edge_to, edge_from, weight, feature_vectors, time_step_nums, time_step_idxs_list, knn_indices, sigmas, rhos, attention

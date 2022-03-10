@@ -65,7 +65,7 @@ def get_graph_elements(graph_, n_epochs):
 
     head = graph.row
     tail = graph.col
-    weight = graph.data
+    weight = graph.data*n_epochs
 
     return graph, head, tail, weight, n_vertices
 
@@ -446,10 +446,15 @@ def construct_spatial_temporal_complex_random(data_provider, init_num, EPOCH_STA
     _, heads, tails, vals, _ = get_graph_elements(time_complex, n_epochs=NUMS)
 
     weight = np.concatenate((weight, vals), axis=0)
-    probs_t = vals / (vals.max() + 1e-4)
     probs = np.concatenate((probs, probs_t), axis=0)
     edge_to = np.concatenate((edge_to, heads), axis=0)
     edge_from = np.concatenate((edge_from, tails), axis=0)
+
+    probs = probs / (probs.max()+1e-3)
+    eliminate_zeros = probs>1e-3
+    edge_to = edge_to[eliminate_zeros]
+    edge_from = edge_from[eliminate_zeros]
+    probs = probs[eliminate_zeros]
 
     return edge_to, edge_from, probs, feature_vectors, attention
 
@@ -570,9 +575,6 @@ def construct_spatial_temporal_complex_kc(data_provider, init_num, MAX_HAUSDORFF
     # strenthen_neighbor = npr[heads]
     weight = np.concatenate((weight, vals), axis=0)
 
-    probs_t = vals / (vals.max() + 1e-4)
-    # probs_t = probs_t*(1+strenthen_neighbor)
-    # probs_t = probs_t*TEMPORAL_EDGE_WEIGHT
 
     probs = np.concatenate((probs, probs_t), axis=0)
     edge_to = np.concatenate((edge_to, heads), axis=0)
