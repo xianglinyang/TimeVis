@@ -32,7 +32,7 @@ class IntrinsicDim:
         return mu
 
     def estimate_id_fast(self):
-        mu = self.find_mu(self.data)
+        mu = self.find_mu()
         N = self.data.shape[0]
         sort_idx = np.argsort(mu)
         Femp     = np.arange(N)/N
