@@ -58,7 +58,7 @@ class Evaluator:
     def eval_b_test(self, epoch, n_neighbors):
         self.trainer.model.eval()
         test_data = self.data_provider.test_representation(epoch)
-        border_centers = self.data_provider.border_representation(epoch)
+        border_centers = self.data_provider.test_border_representation(epoch)
 
         low_center = self.trainer.model.encoder(
             torch.from_numpy(border_centers).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()

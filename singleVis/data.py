@@ -148,6 +148,18 @@ class DataProvider:
             location = os.path.join(self.model_path, "Epoch_{:d}".format(n_epoch), "ori_border_centers.npy")
             np.save(location, border_points.cpu().numpy())
 
+            num_adv_eg = num
+            border_points, _, _ = get_border_points(model=self.model, input_x=training_data, confs=confs, predictions=preds, device=self.DEVICE, l_bound=l_bound, num_adv_eg=num_adv_eg, ambd=0.05, verbose=0)
+
+            # get gap layer data
+            border_points = border_points.to(self.DEVICE)
+            border_centers = batch_run(repr_model, border_points)
+            location = os.path.join(self.model_path, "Epoch_{:d}".format(n_epoch), "test_border_centers.npy")
+            np.save(location, border_centers)
+
+            location = os.path.join(self.model_path, "Epoch_{:d}".format(n_epoch), "test_ori_border_centers.npy")
+            np.save(location, border_points.cpu().numpy())
+
             if self.verbose > 0:
                 print("Finish generating borders for Epoch {:d}...".format(n_epoch))
         print(
@@ -226,6 +238,16 @@ class DataProvider:
     def border_representation(self, epoch):
         border_centers_loc = os.path.join(self.model_path, "Epoch_{:d}".format(epoch),
                                           "border_centers.npy")
+        try:
+            border_centers = np.load(border_centers_loc).squeeze()
+        except Exception as e:
+            print("no border points saved for Epoch {}".format(epoch))
+            border_centers = None
+        return border_centers
+    
+    def test_border_representation(self, epoch):
+        border_centers_loc = os.path.join(self.model_path, "Epoch_{:d}".format(epoch),
+                                          "test_border_centers.npy")
         try:
             border_centers = np.load(border_centers_loc).squeeze()
         except Exception as e:
