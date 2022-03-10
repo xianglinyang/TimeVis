@@ -22,6 +22,10 @@ from singleVis.eval.evaluator import Evaluator
 from singleVis.spatial_edge_constructor import kcSpatialEdgeConstructor
 from singleVis.temporal_edge_constructor import GlobalTemporalEdgeConstructor
 
+########################################################################################################################
+#                                                     LOAD PARAMETERS                                                  #
+########################################################################################################################
+
 
 parser = argparse.ArgumentParser(description='Process hyperparameters...')
 parser.add_argument('--content_path', type=str)
@@ -63,6 +67,9 @@ net = resnet18()
 classes = ("airplane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck")
 
 
+########################################################################################################################
+#                                                    TRAINING SETTING                                                  #
+########################################################################################################################
 data_provider = DataProvider(content_path, net, EPOCH_START, EPOCH_END, EPOCH_PERIOD, split=-1, device=DEVICE, verbose=1)
 if PREPROCESS:
     data_provider.initialize(LEN//10, l_bound=L_BOUND)
@@ -118,6 +125,10 @@ else:
     sampler = WeightedRandomSampler(probs, n_samples, replacement=True)
 edge_loader = DataLoader(dataset, batch_size=1000, sampler=sampler)
 
+########################################################################################################################
+#                                                       TRAIN                                                          #
+########################################################################################################################
+
 trainer = SingleVisTrainer(model, criterion, optimizer, lr_scheduler,edge_loader=edge_loader, DEVICE=DEVICE)
 
 t2=time.time()
@@ -138,8 +149,9 @@ trainer.save(save_dir=data_provider.model_path, file_name="tnn")
 # trainer.load(file_path=os.path.join(data_provider.model_path,"SV.pth"))
 
 ########################################################################################################################
-# visualization results
+#                                                      VISUALIZATION                                                   #
 ########################################################################################################################
+
 from singleVis.visualizer import visualizer
 
 vis = visualizer(data_provider, trainer.model, 200, 10, classes)
@@ -149,8 +161,10 @@ if not os.path.exists(save_dir):
 for i in range(EPOCH_START, EPOCH_END+1, EPOCH_PERIOD):
     vis.savefig(i, path=os.path.join(save_dir, "{}_{}_tnn.png".format(DATASET, i)))
 
+    
 ########################################################################################################################
-# evaluate
+#                                                       EVALUATION                                                     #
 ########################################################################################################################
+
 evaluator = Evaluator(data_provider, trainer)
 evaluator.save_eval(n_neighbors=15, file_name="test_evaluation_tnn")

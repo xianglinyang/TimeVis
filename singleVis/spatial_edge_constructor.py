@@ -1,9 +1,8 @@
 import numpy as np
-import torch
+import os
 import time
 import math
 import json
-from scipy.special import softmax
 
 from umap.umap_ import fuzzy_simplicial_set
 from pynndescent import NNDescent
@@ -201,25 +200,6 @@ class RandomSpatialEdgeConstructor(SpatialEdgeConstructor):
                 knn_indices = np.concatenate((knn_indices, knn_idxs_t+increase_idx), axis=0)
                 time_step_nums.append((t_num, b_num))
 
-        # boundary points...
-
-        # time_complex = construct_temporal_complex(X=feature_vectors,
-        #                                         time_step_nums=time_step_nums,
-        #                                         time_step_idxs_list = time_step_idxs_list,
-        #                                         persistent=TEMPORAL_PERSISTENT,
-        #                                         time_steps=time_steps,
-        #                                         knn_indices=knn_indices,
-        #                                         sigmas=sigmas,
-        #                                         rhos=rhos)
-        # # normalize for symmetry reason
-        # _, heads, tails, vals, _ = get_graph_elements(time_complex, n_epochs=self.n_epochs)
-
-        # weight = np.concatenate((weight, vals), axis=0)
-        # probs_t = vals / (vals.max() + 1e-4)
-        # probs = np.concatenate((probs, probs_t), axis=0)
-        # edge_to = np.concatenate((edge_to, heads), axis=0)
-        # edge_from = np.concatenate((edge_from, tails), axis=0)
-
         return edge_to, edge_from, weight, feature_vectors, time_step_nums, time_step_idxs_list, knn_indices , sigmas, rhos, attention
     
 
@@ -283,6 +263,14 @@ class kcSpatialEdgeConstructor(SpatialEdgeConstructor):
             # load train data and border centers
             train_data = self.data_provider.train_representation(t).squeeze()
 
+            # select highly used border centers...
+            border_centers = self.data_provider.border_representation(t).squeeze()
+            # neigh = NearestNeighbors(n_neighbors=15, radius=0.4)
+            # neigh.fit(border_centers)
+            # high_ind = neigh.kneighbors(train_data, 15, return_distance=False)
+            # selected_borders = np.bincount(high_ind.reshape(-1), minlength=len(border_centers))>100
+            # border_centers = border_centers[selected_borders]
+
             # normalize data by max ||x||_2
             max_x = np.linalg.norm(train_data, axis=1).max()
             train_data = train_data/max_x
@@ -296,7 +284,11 @@ class kcSpatialEdgeConstructor(SpatialEdgeConstructor):
             kc = kCenterGreedy(train_data)
             _ = kc.select_batch_with_cn(selected_idxs, self.MAX_HAUSDORFF, c_c0, d_d0, p=0.95)
             selected_idxs = kc.already_selected.astype("int")
-            with open("selected_{}.json".format(t), "w") as f:
+
+            save_dir = os.path.join(self.data_provider.content_path, "selected_idxs")
+            if not os.path.exists(save_dir):
+                os.mkdir(save_dir)
+            with open(os.path.join(save_dir,"selected_{}.json".format(t)), "w") as f:
                 json.dump(selected_idxs.tolist(), f)
             print("select {:d} points".format(len(selected_idxs)))
 
@@ -304,7 +296,6 @@ class kcSpatialEdgeConstructor(SpatialEdgeConstructor):
 
             train_data = self.data_provider.train_representation(t).squeeze()
             train_data = train_data[selected_idxs]
-            border_centers = self.data_provider.border_representation(t).squeeze()
 
             t_num = len(selected_idxs)
             b_num = len(border_centers)
@@ -346,29 +337,5 @@ class kcSpatialEdgeConstructor(SpatialEdgeConstructor):
                 knn_indices = np.concatenate((knn_idxs_t, knn_indices+increase_idx), axis=0)
                 # npr = np.concatenate((npr_t, npr), axis=0)
                 time_step_nums.insert(0, (t_num, b_num))
-
-        # boundary points...
-        # time_complex = construct_temporal_complex(X=feature_vectors,
-        #                                         time_step_nums=time_step_nums,
-        #                                         time_step_idxs_list = time_step_idxs_list,
-        #                                         persistent=TEMPORAL_PERSISTENT,
-        #                                         time_steps=time_steps,
-        #                                         knn_indices=knn_indices,
-        #                                         sigmas=sigmas,
-        #                                         rhos=rhos)
-        # # normalize for symmetry reason
-        # _, heads, tails, vals, _ = get_graph_elements(time_complex, n_epochs=NUMS)
-
-        # # increase weight of temporal edges
-        # # strenthen_neighbor = npr[heads]
-        # weight = np.concatenate((weight, vals), axis=0)
-
-        # probs_t = vals / (vals.max() + 1e-4)
-        # # probs_t = probs_t*(1+strenthen_neighbor)
-        # # probs_t = probs_t*TEMPORAL_EDGE_WEIGHT
-
-        # probs = np.concatenate((probs, probs_t), axis=0)
-        # edge_to = np.concatenate((edge_to, heads), axis=0)
-        # edge_from = np.concatenate((edge_from, tails), axis=0)
 
         return edge_to, edge_from, weight, feature_vectors, time_step_nums, time_step_idxs_list, knn_indices, sigmas, rhos, attention

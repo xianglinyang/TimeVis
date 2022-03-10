@@ -1,11 +1,10 @@
 """
 Help functions to evaluate our visualization system
 """
-from sklearn.neighbors import KDTree
-from sklearn.neighbors import NearestNeighbors
+
 import numpy as np
-from scipy.stats import pearsonr
 from pynndescent import NNDescent
+from sklearn.neighbors import NearestNeighbors
 from sklearn.manifold import trustworthiness
 from scipy.stats import kendalltau
 from scipy.stats import pearsonr
@@ -232,7 +231,6 @@ def evaluate_keep_B(low_B, grid_view, decision_view, threshold=0.8):
     decision_view = decision_view.reshape(-1, 3)
 
     # find the color of nearest grid view
-    from sklearn.neighbors import NearestNeighbors
     nbs = NearestNeighbors(n_neighbors=1, algorithm="ball_tree").fit(grid_view)
     _, indices = nbs.kneighbors(low_B)
     indices = indices.squeeze()
