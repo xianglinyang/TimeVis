@@ -46,10 +46,7 @@ EPOCH_START = config.dataset_config[DATASET]["EPOCH_START"]
 EPOCH_END = config.dataset_config[DATASET]["EPOCH_END"]
 EPOCH_PERIOD = config.dataset_config[DATASET]["EPOCH_PERIOD"]
 
-DOWNSAMPLING_RATE = config.dataset_config[DATASET]["DOWNSAMPLING_RATE"]
-
 # define hyperparameters
-
 DEVICE = torch.device("cuda:{:d}".format(GPU_ID) if torch.cuda.is_available() else "cpu")
 S_N_EPOCHS = config.dataset_config[DATASET]["training_config"]["S_N_EPOCHS"]
 B_N_EPOCHS = config.dataset_config[DATASET]["training_config"]["B_N_EPOCHS"]

@@ -17,10 +17,14 @@ dataset_config = {
         "EPOCH_END": 11,
         "EPOCH_PERIOD": 1,
         "training_config":{
-            "EPOCH_NUM": 6,
+            "N_NEIGHBORS":15, 
+            "MAX_EPOCH": 6,
+            "S_N_EPOCHS": 5,
+            "B_N_EPOCHS":1,
+            "T_N_EPOCHS": 100,
             "TIME_STEPS": 11,
             "TEMPORAL_PERSISTENT": 1,
-            "NUMS": 5,   # the number of epochs to go through in one go
+            "N_EPOCHS": 5,   # the number of epochs to go through in one go
             "PATIENT": 3,    # early stopping patient
             "TEMPORAL_EDGE_WEIGHT":50,
         }
@@ -40,10 +44,14 @@ dataset_config = {
         "EPOCH_END": 11,
         "EPOCH_PERIOD": 1,
         "training_config":{
-            "EPOCH_NUM": 6,
+            "N_NEIGHBORS":15,
+            "MAX_EPOCH": 6,
+            "S_N_EPOCHS": 5,
+            "B_N_EPOCHS":1,
+            "T_N_EPOCHS": 100,
             "TIME_STEPS": 10,
             "TEMPORAL_PERSISTENT": 1,
-            "NUMS": 5,   # the number of epochs to go through in one go
+            "N_EPOCHS": 5,   # the number of epochs to go through in one go
             "PATIENT": 3,    # early stopping patient
             "TEMPORAL_EDGE_WEIGHT":100,
         }
@@ -63,10 +71,14 @@ dataset_config = {
         "EPOCH_END": 11,
         "EPOCH_PERIOD": 1,
         "training_config":{
-            "EPOCH_NUM": 6,
+            "N_NEIGHBORS":15,
+            "MAX_EPOCH": 6,
+            "S_N_EPOCHS": 5,
+            "B_N_EPOCHS":1,
+            "T_N_EPOCHS": 100,
             "TIME_STEPS": 10,
             "TEMPORAL_PERSISTENT": 1,
-            "NUMS": 5,   # the number of epochs to go through in one go
+            "N_EPOCHS": 5,   # the number of epochs to go through in one go
             "PATIENT": 3,    # early stopping patient
             "TEMPORAL_EDGE_WEIGHT":5,
         }
@@ -85,10 +97,14 @@ dataset_config = {
         "EPOCH_END": 20,
         "EPOCH_PERIOD": 1,
         "training_config":{
-            "EPOCH_NUM": 20,
-            "TIME_STEPS": 20,
+            "N_NEIGHBORS":15,
+            "MAX_EPOCH": 20,
+            "S_N_EPOCHS": 5,
+            "B_N_EPOCHS":5,
+            "T_N_EPOCHS": 20,
+            "TIME_STEPS": 50,
             "TEMPORAL_PERSISTENT": 1,
-            "NUMS": 5,   # the number of epochs to go through in one go
+            "N_EPOCHS": 5,   # the number of epochs to go through in one go
             "PATIENT": 3,    # early stopping patient
             "TEMPORAL_EDGE_WEIGHT":5,
         }
@@ -110,10 +126,15 @@ dataset_config = {
         "EPOCH_END": 10,
         "EPOCH_PERIOD": 1,
         "training_config":{
-            "EPOCH_NUM": 10,
+            "N_NEIGHBORS":15,
+            "MAX_EPOCH": 10,
+            "S_N_EPOCHS": 5,
+            "B_N_EPOCHS":1,
+            "T_N_EPOCHS": 100,
+            "N_EPOCHS": 5,
             "TIME_STEPS": 10,
             "TEMPORAL_PERSISTENT": 1,
-            "NUMS": 5,   # the number of epochs to go through in one go
+            "N_EPOCHS": 5,   # the number of epochs to go through in one go
             "PATIENT": 4,    # early stopping patient
             "TEMPORAL_EDGE_WEIGHT":5,
         }
@@ -122,7 +143,6 @@ dataset_config = {
         "TRAINING_LEN": 60000,
         "TESTING_LEN": 10000,
         "LAMBDA":20.,
-        "DOWNSAMPLING_RATE": .1,
         "L_BOUND":0.5,
         # "MAX_HAUSDORFF":.06, # for 10 epochs
         # "ALPHA":2,
@@ -135,34 +155,33 @@ dataset_config = {
         "EPOCH_END": 50,
         "EPOCH_PERIOD": 1,
         "training_config":{
-            "EPOCH_NUM": 8,
-            "TIME_STEPS": 50,
-            "TEMPORAL_PERSISTENT": 1,
-            "NUMS": 5,   # the number of epochs to go through in one go
+            "N_NEIGHBORS":15,
+            "MAX_EPOCH": 20,
+            "S_N_EPOCHS": 5,
+            "B_N_EPOCHS":3,
+            "T_N_EPOCHS": 50,
             "PATIENT": 4,    # early stopping patient
-            "TEMPORAL_EDGE_WEIGHT":5,
         }
     },
     "cifar10_full": {
         "TRAINING_LEN": 50000,
         "TESTING_LEN": 10000,
         "LAMBDA":10.,
-        "DOWNSAMPLING_RATE": .1,
         "L_BOUND":0.6,
         "MAX_HAUSDORFF":0.2,
-        "ALPHA":1,#0
-        "BETA":1,#.1
+        "ALPHA":0,#0
+        "BETA":.1,#.1
         "INIT_NUM":300,
-        "EPOCH_START": 2,
+        "EPOCH_START": 40,
         "EPOCH_END": 200,
-        "EPOCH_PERIOD": 4,
+        "EPOCH_PERIOD": 1,
         "training_config":{
-            "EPOCH_NUM": 6,
-            "TIME_STEPS": 200,
-            "TEMPORAL_PERSISTENT": 1,
-            "NUMS": 5,   # the number of epochs to go through in one go
+            "N_NEIGHBORS":15,
+            "MAX_EPOCH": 20,
+            "S_N_EPOCHS": 5,
+            "B_N_EPOCHS":1,
+            "T_N_EPOCHS": 100,
             "PATIENT": 3,    # early stopping patient
-            "TEMPORAL_EDGE_WEIGHT":50,
         }
         
     },

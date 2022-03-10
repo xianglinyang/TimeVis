@@ -1,24 +1,15 @@
-from os import replace
 import numpy as np
-import scipy
-from sklearn.linear_model import LinearRegression
-import matplotlib.pyplot as plt
 from pynndescent import NNDescent
 
 import time
 import math
-from sklearn.metrics.pairwise import KERNEL_PARAMS
 import torch
 import sys
 import argparse
-from tqdm import tqdm
 
-from sklearn.metrics import pairwise_distances
 from singleVis.data import DataProvider
-from singleVis.backend import construct_spatial_temporal_complex, select_points_step
 import singleVis.config as config
 from singleVis.kcenter_greedy import kCenterGreedy
-from singleVis.utils import hausdorff_dist_cus
 
 
 def find_mu(data):
@@ -76,7 +67,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Process hyperparameters...')
     parser.add_argument('--content_path', type=str)
-    parser.add_argument('-d','--dataset', choices=['online','cifar10', 'mnist', 'fmnist'])
+    parser.add_argument('-d','--dataset', choices=['online','cifar10', 'mnist', 'fmnist', 'cifar10_full', 'mnist_full', 'fmnist_full'])
     parser.add_argument('-p',"--preprocess", choices=[0,1], default=0)
     parser.add_argument('-g',"--gpu_id", type=int, choices=[0,1,2,3], default=0)
     args = parser.parse_args()
@@ -88,18 +79,23 @@ if __name__ == "__main__":
 
     LEN = config.dataset_config[DATASET]["TRAINING_LEN"]
     LAMBDA = config.dataset_config[DATASET]["LAMBDA"]
-    DOWNSAMPLING_RATE = config.dataset_config[DATASET]["DOWNSAMPLING_RATE"]
     L_BOUND = config.dataset_config[DATASET]["L_BOUND"]
+    MAX_HAUSDORFF = config.dataset_config[DATASET]["MAX_HAUSDORFF"]
+    ALPHA = config.dataset_config[DATASET]["ALPHA"]
+    BETA = config.dataset_config[DATASET]["BETA"]
+    INIT_NUM = config.dataset_config[DATASET]["INIT_NUM"]
+    EPOCH_START = config.dataset_config[DATASET]["EPOCH_START"]
+    EPOCH_END = config.dataset_config[DATASET]["EPOCH_END"]
+    EPOCH_PERIOD = config.dataset_config[DATASET]["EPOCH_PERIOD"]
 
     # define hyperparameters
-
     DEVICE = torch.device("cuda:{:d}".format(GPU_ID) if torch.cuda.is_available() else "cpu")
-    EPOCH_NUMS = config.dataset_config[DATASET]["training_config"]["EPOCH_NUM"]
-    TIME_STEPS = config.dataset_config[DATASET]["training_config"]["TIME_STEPS"]
-    TEMPORAL_PERSISTENT = config.dataset_config[DATASET]["training_config"]["TEMPORAL_PERSISTENT"]
-    NUMS = config.dataset_config[DATASET]["training_config"]["NUMS"]    # how many epoch should we go through for one pass
+    S_N_EPOCHS = config.dataset_config[DATASET]["training_config"]["S_N_EPOCHS"]
+    B_N_EPOCHS = config.dataset_config[DATASET]["training_config"]["B_N_EPOCHS"]
+    T_N_EPOCHS = config.dataset_config[DATASET]["training_config"]["T_N_EPOCHS"]
+    N_NEIGHBORS = config.dataset_config[DATASET]["training_config"]["N_NEIGHBORS"]
     PATIENT = config.dataset_config[DATASET]["training_config"]["PATIENT"]
-    TEMPORAL_EDGE_WEIGHT = config.dataset_config[DATASET]["training_config"]["TEMPORAL_EDGE_WEIGHT"]
+    MAX_EPOCH = config.dataset_config[DATASET]["training_config"]["MAX_EPOCH"]
 
     content_path = CONTENT_PATH
     sys.path.append(content_path)
@@ -107,43 +103,9 @@ if __name__ == "__main__":
     from Model.model import *
     net = resnet18()
     classes = ("airplane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck")
-    data_provider = DataProvider(content_path, net, 1, TIME_STEPS, 1, split=-1, device=DEVICE, verbose=1)
 
-    # init with 100,200,300
-    # adding 100,200 points to get a initial result
+    data_provider = DataProvider(content_path, net, EPOCH_START, EPOCH_END, EPOCH_PERIOD, split=-1, device=DEVICE, verbose=1)
 
-    # init with 200, adding 100 points
-    # data = data_provider.train_representation(TIME_STEPS)
-    # max_x = np.linalg.norm(data, axis=1).max()
-    # data = data/max_x
-    # c0, d0, t0 = get_unit(data)
-    # print("find ratio in {} seconds".format(t0))
-    
-    # idxs_ = np.random.choice(np.arange(LEN), size=300, replace=False)
-    # for i in range(TIME_STEPS, 0, -1):
-    #     print("=========================={:d}==========================".format(i))
-    #     data = data_provider.train_representation(i)
-    #     max_x = np.linalg.norm(data, axis=1).max()
-    #     data = data/max_x
-    #     c, d, t = get_unit(data)
-    #     print(c/c0, d/d0)
-    #     ratio = c/c0
-
-    #     kc = kCenterGreedy(data)
-    #     _ = kc.select_batch_with_budgets(idxs_, 5700)
-    #     haus = kc.hausdorff()
-    #     idxs = kc.already_selected
-    #     print(haus, haus/ratio, haus/ratio/d*d0)
-
-        # _ = kc.select_batch_with_budgets(idxs, 1200)
-        # haus = kc.hausdorff()
-        # idxs = kc.already_selected
-        # print(haus, haus/ratio)
-
-        # _ = kc.select_batch_with_budgets(idxs, 1000)
-        # haus = kc.hausdorff()
-        # idxs = kc.already_selected
-        # print(haus, haus/ratio/d*d0)
     if DATASET == "fmnist":
         # 232s
         # alpha = 2
@@ -170,7 +132,7 @@ if __name__ == "__main__":
     train_num = data_provider.train_num
     selected_idxs = np.random.choice(np.arange(train_num), size=300, replace=False)
 
-    baseline_data = data_provider.train_representation(TIME_STEPS)
+    baseline_data = data_provider.train_representation(EPOCH_END)
     max_x = np.linalg.norm(baseline_data, axis=1).max()
     baseline_data = baseline_data/max_x
     
@@ -178,7 +140,7 @@ if __name__ == "__main__":
 
     # each time step
     t0 = time.time()
-    for t in range(TIME_STEPS, 0, -1):
+    for t in range(EPOCH_END, EPOCH_START-1, -EPOCH_PERIOD):
         print("================{:d}=================".format(t))
         # load train data and border centers
         train_data = data_provider.train_representation(t).squeeze()

@@ -2,15 +2,8 @@
 import torch
 import sys
 import numpy as np
-from torch.utils.data import DataLoader
-from torch.utils.data import WeightedRandomSampler
-from umap.umap_ import find_ab_params
 import json
 
-from singleVis.SingleVisualizationModel import SingleVisualizationModel
-from singleVis.losses import SingleVisLoss, UmapLoss, ReconstructionLoss
-from singleVis.edge_dataset import DataHandler
-from singleVis.trainer import SingleVisTrainer
 from singleVis.data import DataProvider
 
 import singleVis.config as config
@@ -20,7 +13,7 @@ from singleVis import kcenter_greedy
 
 parser = argparse.ArgumentParser(description='Process hyperparameters...')
 parser.add_argument('--content_path', type=str)
-parser.add_argument('-d','--dataset', choices=['online','cifar10', 'mnist', 'fmnist'])
+parser.add_argument('-d','--dataset', choices=['online','cifar10', 'mnist', 'fmnist', 'cifar10_full', 'mnist_full', 'fmnist_full'])
 parser.add_argument('-p',"--preprocess", choices=[0,1], default=0)
 parser.add_argument('-g',"--gpu_id", type=int, choices=[0,1,2,3], default=0)
 args = parser.parse_args()
@@ -32,18 +25,23 @@ GPU_ID = args.gpu_id
 
 LEN = config.dataset_config[DATASET]["TRAINING_LEN"]
 LAMBDA = config.dataset_config[DATASET]["LAMBDA"]
-DOWNSAMPLING_RATE = config.dataset_config[DATASET]["DOWNSAMPLING_RATE"]
 L_BOUND = config.dataset_config[DATASET]["L_BOUND"]
+MAX_HAUSDORFF = config.dataset_config[DATASET]["MAX_HAUSDORFF"]
+ALPHA = config.dataset_config[DATASET]["ALPHA"]
+BETA = config.dataset_config[DATASET]["BETA"]
+INIT_NUM = config.dataset_config[DATASET]["INIT_NUM"]
+EPOCH_START = config.dataset_config[DATASET]["EPOCH_START"]
+EPOCH_END = config.dataset_config[DATASET]["EPOCH_END"]
+EPOCH_PERIOD = config.dataset_config[DATASET]["EPOCH_PERIOD"]
 
 # define hyperparameters
-
 DEVICE = torch.device("cuda:{:d}".format(GPU_ID) if torch.cuda.is_available() else "cpu")
-EPOCH_NUMS = config.dataset_config[DATASET]["training_config"]["EPOCH_NUM"]
-TIME_STEPS = config.dataset_config[DATASET]["training_config"]["TIME_STEPS"]
-TEMPORAL_PERSISTENT = config.dataset_config[DATASET]["training_config"]["TEMPORAL_PERSISTENT"]
-NUMS = config.dataset_config[DATASET]["training_config"]["NUMS"]    # how many epoch should we go through for one pass
+S_N_EPOCHS = config.dataset_config[DATASET]["training_config"]["S_N_EPOCHS"]
+B_N_EPOCHS = config.dataset_config[DATASET]["training_config"]["B_N_EPOCHS"]
+T_N_EPOCHS = config.dataset_config[DATASET]["training_config"]["T_N_EPOCHS"]
+N_NEIGHBORS = config.dataset_config[DATASET]["training_config"]["N_NEIGHBORS"]
 PATIENT = config.dataset_config[DATASET]["training_config"]["PATIENT"]
-TEMPORAL_EDGE_WEIGHT = config.dataset_config[DATASET]["training_config"]["TEMPORAL_EDGE_WEIGHT"]
+MAX_EPOCH = config.dataset_config[DATASET]["training_config"]["MAX_EPOCH"]
 
 content_path = CONTENT_PATH
 sys.path.append(content_path)
@@ -52,7 +50,8 @@ from Model.model import *
 net = resnet18()
 classes = ("airplane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck")
 
-data_provider = DataProvider(content_path, net, 1, TIME_STEPS, 1, split=-1, device=DEVICE, verbose=1)
+
+data_provider = DataProvider(content_path, net, EPOCH_START, EPOCH_END, EPOCH_PERIOD, split=-1, device=DEVICE, verbose=1)
 
 # each time step
 ratio = np.array([0.9, 0.1,0.01])
