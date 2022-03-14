@@ -2,7 +2,10 @@ import os
 import gc
 import time
 
+from projects.git_space.DeepVisualInsight.deepvisualinsight.evaluate import evaluate_inv_accu
+
 from singleVis.utils import *
+from singleVis.eval.evaluate import evaluate_inv_accu
 
 """
 DataContainder module
@@ -304,3 +307,32 @@ class DataProvider:
         data = data.to(self.DEVICE)
         pred = batch_run(prediction_func, data)
         return pred.squeeze()
+
+    def training_accu(self, epoch):
+        data = self.train_representation(epoch)
+        labels = self.train_labels(epoch)
+        pred = self.get_pred(epoch, data).argmax(-1)
+        val = evaluate_inv_accu(labels, pred)
+        return val
+
+    def testing_accu(self, epoch):
+        data = self.test_representation(epoch)
+        labels = self.test_labels()
+        test_index_file = os.path.join(self.model_path, "Epoch_{}".format(epoch), "test_index.json")
+        if os.path.exists(test_index_file):
+            index = load_labelled_data_index(test_index_file)
+            labels = labels[index]
+        pred = self.get_pred(epoch, data).argmax(-1)
+        val = evaluate_inv_accu(labels, pred)
+        return val
+    
+    def is_deltaB(self, epoch, data):
+        """
+        check wheter input vectors are lying on delta-boundary or not
+        :param epoch_id:
+        :param data: numpy.ndarray
+        :return: numpy.ndarray, boolean, True stands for is_delta_boundary
+        """
+        preds = self.get_pred(epoch, data)
+        border = is_B(preds)
+        return border

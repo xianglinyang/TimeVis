@@ -15,6 +15,8 @@ class SingleVisualizationModel(nn.Module):
             nn.ReLU(True),
             nn.Linear(units, units),
             nn.ReLU(True),
+            # nn.Linear(units, units),
+            # nn.ReLU(True),
             nn.Linear(units, output_dims)
         )
 
@@ -27,6 +29,8 @@ class SingleVisualizationModel(nn.Module):
             nn.ReLU(True),
             nn.Linear(units, units),
             nn.ReLU(True),
+            # nn.Linear(units, units),
+            # nn.ReLU(True),
             nn.Linear(units, input_dims)
         )
 

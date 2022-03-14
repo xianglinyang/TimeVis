@@ -354,10 +354,12 @@ class Evaluator:
         evaluation[n_key]["nn_test"] = dict()
         evaluation[n_key]["b_train"] = dict()
         evaluation[n_key]["b_test"] = dict()
+        evaluation[n_key]["st_nn_train"] = dict()
+        evaluation[n_key]["st_nn_test"] = dict()
         evaluation["ppr_train"] = dict()
         evaluation["ppr_test"] = dict()
-        evaluation["ranking_train"] = dict()
-        evaluation["ranking_test"] = dict()
+        evaluation["tnn_train"] = dict()
+        evaluation["tnn_test"] = dict()
 
         for epoch in range(self.data_provider.s, self.data_provider.e+1, self.data_provider.p):
 
@@ -369,13 +371,14 @@ class Evaluator:
 
             evaluation["ppr_train"][epoch] = self.eval_inv_train(epoch)
             evaluation["ppr_test"][epoch] = self.eval_inv_test(epoch)
-            evaluation["ranking_train"][epoch] = dict()
-            evaluation["ranking_test"][epoch] = dict()
+            evaluation["tnn_train"][epoch] = dict()
+            evaluation["tnn_test"][epoch] = dict()
             for k in [1,3,5,7]:
-                evaluation["ranking_train"][epoch][k] = self.eval_temporal_nn_train(epoch, k)
-                evaluation["ranking_test"][epoch][k] = self.eval_temporal_nn_test(epoch, k)
-            
-        train_val = self.eval_spatial_temporal_nn_train(n_neighbors,512)
+                evaluation["tnn_train"][epoch][k] = self.eval_temporal_nn_train(epoch, k)
+                evaluation["tnn_test"][epoch][k] = self.eval_temporal_nn_test(epoch, k)
+        
+        # TODO maybe one for each epoch?
+        train_val = self.eval_spatial_temporal_nn_train(n_neighbors, 512)
         evaluation[n_key]["st_nn_train"] = train_val
         test_val = self.eval_spatial_temporal_nn_test(n_neighbors, 512)
         evaluation[n_key]["st_nn_test"] = test_val
