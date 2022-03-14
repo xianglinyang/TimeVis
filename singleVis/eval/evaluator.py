@@ -386,15 +386,18 @@ class Evaluator:
         t_test_val, t_test_std = self.eval_temporal_test(n_neighbors)
         evaluation[n_key]["temporal_test_mean"] = t_test_val
         evaluation[n_key]["temporal_test_std"] = t_test_std
-        # corr_train = self.eval_temporal_corr_train()
-        # evaluation["temporal_corr_train"] = corr_train
-        # corr_test = self.eval_temporal_corr_test()
-        # evaluation["temporal_corr_test"] = corr_test
 
         with open(save_dir, "w") as f:
             json.dump(evaluation, f)
         if self.verbose:
             print("Successfully save evaluation with {:d} neighbors...".format(n_neighbors))
+    
+    def get_eval(self, file_name="evaluation"):
+        save_dir = os.path.join(self.data_provider.model_path, file_name + ".json")
+        f = open(save_dir, "r")
+        evaluation = json.load(f)
+        f.close()
+        return evaluation
 
 
 

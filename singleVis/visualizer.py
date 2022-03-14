@@ -265,3 +265,15 @@ class visualizer:
         
         # plt.quiver(prev_embedding[:, 0], prev_embedding[:, 1], embedding[:, 0]-prev_embedding[:, 0],embedding[:, 1]-prev_embedding[:, 1], scale_units='xy', angles='xy', scale=1)  
         plt.savefig(path)
+    
+    def get_standard_classes_color(self):
+        '''
+        get the RGB value for 10 classes
+        :return:
+            color : numpy.ndarray, shape (10, 3)
+        '''
+        mesh_max_class = self.class_num - 1
+        mesh_classes = np.arange(10)
+        color = self.cmap(mesh_classes / mesh_max_class)
+        color = color[:, 0:3]
+        return color
