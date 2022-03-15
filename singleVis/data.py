@@ -2,8 +2,6 @@ import os
 import gc
 import time
 
-from projects.git_space.DeepVisualInsight.deepvisualinsight.evaluate import evaluate_inv_accu
-
 from singleVis.utils import *
 from singleVis.eval.evaluate import evaluate_inv_accu
 
