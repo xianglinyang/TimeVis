@@ -1,15 +1,80 @@
 '''This class serves as a intermediate layer for tensorboard frontend and timeVis backend'''
 import os
+import sys
 import json
+import torch
 import pandas as pd
 import numpy as np
+from scipy.special import softmax
+
+# sys.path.append("..")
+from singleVis.utils import *
 
 
 class TimeVisBackend:
     def __init__(self, data_provider, trainer, evaluator) -> None:
         self.data_provider = data_provider
         self.trainer = trainer
+        self.trainer.model.eval()
         self.evaluator = evaluator
+    
+    #################################################################################################################
+    #                                                                                                               #
+    #                                                data Panel                                                     #
+    #                                                                                                               #
+    #################################################################################################################
+
+    def batch_project(self, data):
+        embedding = self.trainer.model.encoder(torch.from_numpy(data).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
+        return embedding
+    
+    def individual_project(self, data):
+        embedding = self.trainer.model.encoder(torch.from_numpy(np.expand_dims(data, axis=0)).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
+        return embedding.squeeze(axis=0)
+    
+    def batch_inverse(self, embedding):
+        data = self.trainer.model.decoder(torch.from_numpy(embedding).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
+        return data
+    
+    def individual_inverse(self, embedding):
+        data = self.trainer.model.decoder(torch.from_numpy(np.expand_dims(embedding, axis=0)).to(dtype=torch.float32, device=self.trainer.DEVICE)).cpu().detach().numpy()
+        return data.squeeze(axis=0)
+
+    def batch_inv_preserve(self, epoch, data):
+        """
+        get inverse confidence for a single point
+        :param epoch: int
+        :param data: numpy.ndarray
+        :return l: boolean, whether reconstruction data have the same prediction
+        :return conf_diff: float, (0, 1), confidence difference
+        """
+        self.trainer.model.eval()
+        embedding = self.batch_project(data)
+        recon = self.batch_inverse(embedding)
+    
+        ori_pred = self.data_provider.get_pred(epoch, data)
+        new_pred = self.data_provider.get_pred(epoch, recon)
+        ori_pred = softmax(ori_pred, axis=1)
+        new_pred = softmax(new_pred, axis=1)
+
+        old_label = ori_pred.argmax(-1)
+        new_label = new_pred.argmax(-1)
+        l = old_label == new_label
+
+        old_conf = [ori_pred[i, old_label[i]] for i in range(len(old_label))]
+        new_conf = [new_pred[i, old_label[i]] for i in range(len(old_label))]
+        old_conf = np.array(old_conf)
+        new_conf = np.array(new_conf)
+
+        conf_diff = old_conf - new_conf
+        return l, conf_diff
+    
+    #################################################################################################################
+    #                                                                                                               #
+    #                                                Search Panel                                                   #
+    #                                                                                                               #
+    #################################################################################################################
+
 
     def subject_model_table(self):
         """get the dataframe for subject model table
@@ -134,6 +199,8 @@ class TimeVisBackend:
             new_selected_epoch[labeled] = epoch_id
         df["al_selected_epoch"] = new_selected_epoch.tolist()
         return df
+    
+    # TODO have not define noisy dataset yet
 
     # def sample_table_noisy(self):
     #     df = self.sample_table()
@@ -189,9 +256,129 @@ class TimeVisBackend:
     def filter_prediction(self, pred):
         pass
 
+
+
+    #################################################################################################################
+    #                                                                                                               #
+    #                                             Helper Functions                                                  #
+    #                                                                                                               #
+    #################################################################################################################
+
     def get_epoch_index(self, epoch_id):
         """get the training data index for an epoch"""
         index_file = os.path.join(self.model_path, "Epoch_{:d}".format(epoch_id), "index.json")
-        with open(index_file, 'r') as f:
-            index = json.load(f)
+        index = load_labelled_data_index(index_file)
         return index
+    
+    #################################################################################################################
+    #                                                                                                               #
+    #                                          Case Studies Related                                                 #
+    #                                                                                                               #
+    #################################################################################################################     
+    '''active learning'''
+    def get_new_index(self, epoch):
+        """get the index of new selection"""
+        new_epoch = epoch + self.data_provider.p
+        if new_epoch > self.epoch_end:
+            return list()
+
+        index_file = os.path.join(self.data_provider.model_path, "Epoch_{:d}".format(epoch), "index.json")
+        index = load_labelled_data_index(index_file)
+        new_index_file = os.path.join(self.data_provider.model_path, "Epoch_{:d}".format(new_epoch), "index.json")
+        new_index = load_labelled_data_index(new_index_file)
+
+        idxs = []
+        for i in new_index:
+            if i not in index:
+                idxs.append(i)
+
+        return idxs
+
+    '''Noise data(Mislabelled data)'''
+    def noisy_data_index(self):
+        """get noise data index"""
+        index_file = os.path.join(self.data_provider.content_path, "index.json")
+        if not os.path.exists(index_file):
+            return list()
+        return load_labelled_data_index(index_file)
+
+    def get_original_labels(self):
+        """
+        get original dataset label(without noise)
+        :return labels: list, shape(N,)
+        """
+        index_file = os.path.join(self.data_provider.content_path, "index.json")
+        if not os.path.exists(index_file):
+            return list()
+        index = load_labelled_data_index(index_file)
+        old_file = os.path.join(self.data_provider.content_path, "old_labels.json")
+        old_labels = load_labelled_data_index(old_file)
+
+        labels = np.copy(self.training_labels.cpu().numpy())
+        labels[index] = old_labels
+
+        return labels
+
+    def get_uncertainty_score(self, epoch_id):
+        try:
+            uncertainty_score_path = os.path.join(self.data_provider.model_path, "Epoch_{}".format(epoch_id),"train_uncertainty_score.json")
+            with open(uncertainty_score_path, "r") as f:
+                train_uncertainty_score = json.load(f)
+
+            uncertainty_score_path = os.path.join(self.data_provider.model_path, "Epoch_{}".format(epoch_id),"test_uncertainty_score.json")
+            with open(uncertainty_score_path, "r") as f:
+                test_uncertainty_score = json.load(f)
+
+            uncertainty_score = train_uncertainty_score + test_uncertainty_score
+            return uncertainty_score
+        except FileNotFoundError:
+            train_num = self.data_provider.train_num
+            test_num = self.data_provider.test_num
+            return [-1 for i in range(train_num+test_num)]
+
+    def get_diversity_score(self, epoch_id):
+        try:
+            dis_score_path = os.path.join(self.data_provider.model_path, "Epoch_{}".format(epoch_id), "train_dis_score.json")
+            with open(dis_score_path, "r") as f:
+                train_dis_score = json.load(f)
+
+            dis_score_path = os.path.join(self.data_provider.model_path, "Epoch_{}".format(epoch_id), "test_dis_score.json")
+            with open(dis_score_path, "r") as f:
+                test_dis_score = json.load(f)
+
+            dis_score = train_dis_score + test_dis_score
+
+            return dis_score
+        except FileNotFoundError:
+            train_num = self.data_provider.train_num
+            test_num = self.data_provider.test_num
+            return [-1 for i in range(train_num+test_num)]
+
+    def get_total_score(self, epoch_id):
+        try:
+            total_score_path = os.path.join(self.data_provider.model_path, "Epoch_{}".format(epoch_id), "train_total_score.json")
+            with open(total_score_path, "r") as f:
+                train_total_score = json.load(f)
+
+            total_score_path = os.path.join(self.data_provider.model_path, "Epoch_{}".format(epoch_id), "test_total_score.json")
+            with open(total_score_path, "r") as f:
+                test_total_score = json.load(f)
+
+            total_score = train_total_score + test_total_score
+
+            return total_score
+        except FileNotFoundError:
+            train_num = self.data_provider.train_num
+            test_num = self.data_provider.test_num
+            return [-1 for i in range(train_num+test_num)]
+
+    def save_DVI_selection(self, epoch_id, indices):
+        """
+        save the selected index message from DVI frontend
+        :param epoch_id:
+        :param indices: list, selected indices
+        :return:
+        """
+        save_location = os.path.join(self.data_provider.model_path, "Epoch_{}".format(epoch_id), "DVISelection.json")
+        with open(save_location, "w") as f:
+            json.dump(indices, f)
