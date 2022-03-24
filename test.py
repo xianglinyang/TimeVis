@@ -1,18 +1,22 @@
 import torch
 import sys
 import os
-import numpy as np
-import json
+
+import argparse
+
 from umap.umap_ import find_ab_params
 
-from singleVis.losses import SingleVisLoss, UmapLoss, ReconstructionLoss
 from singleVis.SingleVisualizationModel import SingleVisualizationModel
+from singleVis.losses import SingleVisLoss, UmapLoss, ReconstructionLoss
 from singleVis.trainer import SingleVisTrainer
 from singleVis.data import DataProvider
-from singleVis.visualizer import visualizer
-
 import singleVis.config as config
-import argparse
+from singleVis.eval.evaluator import Evaluator
+
+########################################################################################################################
+#                                                     LOAD PARAMETERS                                                  #
+########################################################################################################################
+
 
 parser = argparse.ArgumentParser(description='Process hyperparameters...')
 parser.add_argument('--content_path', type=str)
@@ -54,6 +58,9 @@ net = resnet18()
 classes = ("airplane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck")
 
 
+########################################################################################################################
+#                                                    TRAINING SETTING                                                  #
+########################################################################################################################
 data_provider = DataProvider(content_path, net, EPOCH_START, EPOCH_END, EPOCH_PERIOD, split=-1, device=DEVICE, verbose=1)
 if PREPROCESS:
     data_provider.initialize(LEN//10, l_bound=L_BOUND)
@@ -69,32 +76,28 @@ criterion = SingleVisLoss(umap_loss_fn, recon_loss_fn, lambd=LAMBDA)
 optimizer = torch.optim.Adam(model.parameters(), lr=.01, weight_decay=1e-5)
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=.1)
 
+
 trainer = SingleVisTrainer(model, criterion=criterion, optimizer=optimizer, lr_scheduler=lr_scheduler, edge_loader=None, DEVICE=DEVICE)
 trainer.load(file_path=os.path.join(data_provider.model_path,"tnn.pth"))
 
 ########################################################################################################################
-# visualization results
+#                                                      VISUALIZATION                                                   #
 ########################################################################################################################
-# classes = list(range(10))
-# vis = visualizer(data_provider, trainer.model, 200, 10, classes)
-# save_dir = "./result"
-# if not os.path.exists(save_dir):
-#     os.mkdir(save_dir)
-# for i in range(1, TIME_STEPS+1, 1):
-#     test_data = data_provider.test_representation(i)
-#     test_labels = data_provider.test_labels(i)
-#     with open("/home/xianglin/projects/DVI_data/online_learning/target_list.json", "r") as f:
-#         index = json.load(f)
-#     test_data = test_data[index]
-#     test_labels = test_labels[index]
-#     preds = data_provider.get_pred(i, test_data)
-#     preds = np.argmax(preds, axis=1)
-#     vis.savefig_cus(i,test_data, preds, test_labels, path=os.path.join(save_dir, "motivated_{}_{}.png".format(DATASET, i)))
+
+from singleVis.visualizer import visualizer
+
+vis = visualizer(data_provider, trainer.model, 200, 10, classes)
+save_dir = os.path.join(data_provider.content_path, "img")
+if not os.path.exists(save_dir):
+    os.mkdir(save_dir)
+for i in range(EPOCH_START, EPOCH_END+1, EPOCH_PERIOD):
+    vis.savefig(i, path=os.path.join(save_dir, "{}_{}_tnn.png".format(DATASET, i)))
 ########################################################################################################################
-# evaluate
+#                                                       EVALUATION                                                     #
 ########################################################################################################################
-from singleVis.eval.evaluator import Evaluator
-evaluator = Evaluator(data_provider, trainer)
+
+# evaluator = Evaluator(data_provider, trainer)
+# evaluator.save_eval(n_neighbors=15, file_name="test_evaluation_tnn")
 # evaluator.save_eval(n_neighbors=10, file_name="test_evaluation")
 # evaluator.save_eval(n_neighbors=15, file_name="test_evaluation")
 # evaluator.save_eval(n_neighbors=20, file_name="test_evaluation")
@@ -104,8 +107,8 @@ evaluator = Evaluator(data_provider, trainer)
 # evaluator.eval_temporal_corr_train(n_grain=2)
 # evaluator.eval_temporal_train(15)
 # evaluator.eval_temporal_test(15)
-evaluator.eval_spatial_temporal_nn_train(15, 512)
-evaluator.eval_spatial_temporal_nn_test(15, 512)
+# evaluator.eval_spatial_temporal_nn_train(15, 512)
+# evaluator.eval_spatial_temporal_nn_test(15, 512)
 # for epoch in range(1, 11, 1):
     # evaluator.eval_temporal_nn_train(epoch, 3)
     # evaluator.eval_temporal_nn_test(epoch, 3)

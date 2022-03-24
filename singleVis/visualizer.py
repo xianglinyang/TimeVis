@@ -131,7 +131,7 @@ class visualizer:
         '''
         Shows the current plot.
         '''
-        self._init_plot()
+        self._init_plot(only_img=True)
 
         x_min, y_min, x_max, y_max = self.get_epoch_plot_measures(epoch)
 
@@ -141,9 +141,9 @@ class visualizer:
         self.ax.set_xlim((x_min, x_max))
         self.ax.set_ylim((y_min, y_max))
 
-        params_str = 'res: %d'
-        desc = params_str % (self.resolution)
-        self.desc.set_text(desc)
+        # params_str = 'res: %d'
+        # desc = params_str % (self.resolution)
+        # self.desc.set_text(desc)
 
         train_data = self.data_provider.train_representation(epoch)
         train_labels = self.data_provider.train_labels(epoch)
