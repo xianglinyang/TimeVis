@@ -5,6 +5,7 @@
 # TODO change to timevis format
 # TODO set a base class for some trainer functions... we dont need too many hyperparameters for frontend
 
+from unicodedata import name
 from flask import request, Response, Flask, jsonify, make_response
 from flask_cors import CORS, cross_origin
 
@@ -248,7 +249,7 @@ def update_projection():
     color = color.astype(int).tolist()
 
     # TODO fix its structure
-    evaluation = evaluator.get_eval()
+    evaluation = evaluator.get_eval(file_name="test_evaluation")
     eval_new = dict()
     eval_new["nn_train_15"] = evaluation["15"]['nn_train'][str(EPOCH)]
     eval_new['nn_test_15'] = evaluation["15"]['nn_test'][str(EPOCH)]

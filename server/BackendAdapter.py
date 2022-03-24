@@ -266,7 +266,7 @@ class TimeVisBackend:
 
     def get_epoch_index(self, epoch_id):
         """get the training data index for an epoch"""
-        index_file = os.path.join(self.model_path, "Epoch_{:d}".format(epoch_id), "index.json")
+        index_file = os.path.join(self.data_provider.model_path, "Epoch_{:d}".format(epoch_id), "index.json")
         index = load_labelled_data_index(index_file)
         return index
     
@@ -279,7 +279,7 @@ class TimeVisBackend:
     def get_new_index(self, epoch):
         """get the index of new selection"""
         new_epoch = epoch + self.data_provider.p
-        if new_epoch > self.epoch_end:
+        if new_epoch > self.data_provider.e:
             return list()
 
         index_file = os.path.join(self.data_provider.model_path, "Epoch_{:d}".format(epoch), "index.json")
