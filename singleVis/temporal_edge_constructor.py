@@ -1,3 +1,4 @@
+from time import time
 import numpy as np
 import scipy
 
@@ -113,6 +114,8 @@ Strategies:
     Local strategy:
         connect each sample to its nearby epochs
     Global strategy:
+        connect each sample to its k temporal neighbors
+    GlobalParallel strategy:
         connect each sample to its k temporal neighbors
 """
 
@@ -277,6 +280,65 @@ class GlobalTemporalEdgeConstructor(TemporalEdgeConstructor):
 
                 indices[train_sample_idx] = top_k_idxs
                 dists[train_sample_idx] = top_k_dists
+
+        rows, cols, vals, _ = compute_membership_strengths(indices, dists, self.sigmas, self.rhos, return_dists=False)
+        # build time complex
+        time_complex = self.temporal_simplicial_set(rows=rows, cols=cols, vals=vals, n_vertice=num)
+        # normalize for symmetry reason
+        _, heads, tails, weights, _ = get_graph_elements(time_complex, n_epochs=self.n_epochs)
+
+        return heads, tails, weights
+
+
+class GlobalParallelTemporalEdgeConstructor(TemporalEdgeConstructor):
+    def __init__(self, X, time_step_nums, sigmas, rhos, n_neighbors, n_epochs, selected_idxs_lists) -> None:
+        super().__init__(X, time_step_nums, sigmas, rhos, n_neighbors, n_epochs)
+        self.selected_idxs = selected_idxs_lists
+    
+    def construct(self):
+        rows = np.zeros(1, dtype=np.int32)
+        cols = np.zeros(1, dtype=np.int32)
+        vals = np.zeros(1, dtype=np.float32)
+
+        base_idx = 0
+        base_idx_list = list()
+        for i in self.time_step_nums:
+            base_idx_list.append(base_idx)
+            base_idx = base_idx + i[0] + i[1]
+        base_idx_list = np.array(base_idx_list, dtype=int)
+
+        num = len(self.features)
+
+        # placeholder for knn_indices and knn_dists
+        indices = - np.ones((num, self.n_neighbors), dtype=int)
+        dists = np.zeros((num, self.n_neighbors), dtype=np.float32)
+
+        for time_step in range(self.time_steps):
+            for point_idx in range(len(self.selected_idxs[time_step])):
+                true_idx = self.selected_idxs[time_step][point_idx]
+
+                identical_self = list()
+                for e in range(self.time_steps):
+                    arg = np.argwhere(self.selected_idxs[e]==true_idx)
+                    if arg.shape[0]:
+                        target_idx = arg[0][0]
+                        identical_self.append(base_idx_list[e]+target_idx)
+                    
+                if len(identical_self) >0:
+                    # identical self number exceeds n_neighbors, need to select top n_neighbors
+                    curr_idx = base_idx_list[time_step]+point_idx
+                    candidate_idxs = np.array(identical_self)
+                    nn_dist = knn_dists(self.features, [curr_idx], candidate_idxs).squeeze(axis=0)
+                    # find top k
+                    order = np.argsort(nn_dist)
+                    # deal with if len(candidate_idxs)<n_neighbors situation
+                    top_k_idxs = candidate_idxs[order<self.n_neighbors]
+                    top_k_idxs = np.pad(top_k_idxs, (0, self.n_neighbors-len(top_k_idxs)), 'constant', constant_values=-1).astype('int')
+                    top_k_dists = nn_dist[order<self.n_neighbors]
+                    top_k_dists = np.pad(top_k_dists, (0, self.n_neighbors-len(top_k_dists)), 'constant', constant_values=0.).astype(np.float32)
+
+                    indices[curr_idx] = top_k_idxs
+                    dists[curr_idx] = top_k_dists
 
         rows, cols, vals, _ = compute_membership_strengths(indices, dists, self.sigmas, self.rhos, return_dists=False)
         # build time complex
