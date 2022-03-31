@@ -136,7 +136,7 @@ class DataProvider:
             preds = np.argmax(confs, axis=1).squeeze()
             # TODO how to choose the number of boundary points?
             num_adv_eg = num
-            border_points, _, _ = get_border_points(model=self.model, input_x=training_data, confs=confs, predictions=preds, device=self.DEVICE, l_bound=l_bound, num_adv_eg=num_adv_eg, ambd=0.05, verbose=0)
+            border_points, _, _ = get_border_points(model=self.model, input_x=training_data, confs=confs, predictions=preds, device=self.DEVICE, l_bound=l_bound, num_adv_eg=num_adv_eg, lambd=0.05, verbose=0)
             t1 = time.time()
             time_borders_gen.append(round(t1 - t0, 4))
 
@@ -150,7 +150,7 @@ class DataProvider:
             np.save(location, border_points.cpu().numpy())
 
             num_adv_eg = num
-            border_points, _, _ = get_border_points(model=self.model, input_x=training_data, confs=confs, predictions=preds, device=self.DEVICE, l_bound=l_bound, num_adv_eg=num_adv_eg, ambd=0.05, verbose=0)
+            border_points, _, _ = get_border_points(model=self.model, input_x=training_data, confs=confs, predictions=preds, device=self.DEVICE, l_bound=l_bound, num_adv_eg=num_adv_eg, lambd=0.05, verbose=0)
 
             # get gap layer data
             border_points = border_points.to(self.DEVICE)
