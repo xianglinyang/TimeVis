@@ -296,10 +296,6 @@ class GlobalParallelTemporalEdgeConstructor(TemporalEdgeConstructor):
         self.selected_idxs = selected_idxs_lists
     
     def construct(self):
-        rows = np.zeros(1, dtype=np.int32)
-        cols = np.zeros(1, dtype=np.int32)
-        vals = np.zeros(1, dtype=np.float32)
-
         base_idx = 0
         base_idx_list = list()
         for i in self.time_step_nums:
@@ -341,9 +337,15 @@ class GlobalParallelTemporalEdgeConstructor(TemporalEdgeConstructor):
                     dists[curr_idx] = top_k_dists
 
         rows, cols, vals, _ = compute_membership_strengths(indices, dists, self.sigmas, self.rhos, return_dists=False)
-        # build time complex
-        time_complex = self.temporal_simplicial_set(rows=rows, cols=cols, vals=vals, n_vertice=num)
-        # normalize for symmetry reason
-        _, heads, tails, weights, _ = get_graph_elements(time_complex, n_epochs=self.n_epochs)
+        if len(rows)>0:
+            # build time complex
+            time_complex = self.temporal_simplicial_set(rows=rows, cols=cols, vals=vals, n_vertice=num)
+            # normalize for symmetry reason
+            _, heads, tails, weights, _ = get_graph_elements(time_complex, n_epochs=self.n_epochs)
 
-        return heads, tails, weights
+            return heads, tails, weights
+        else:
+            rows = np.zeros(1, dtype=np.int32)
+            cols = np.zeros(1, dtype=np.int32)
+            vals = np.zeros(1, dtype=np.float32)
+            return rows, cols, vals

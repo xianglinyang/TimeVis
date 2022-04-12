@@ -49,8 +49,9 @@ def get_graph_elements(graph_, n_epochs):
         else:
             n_epochs = 200
     # remove elements with very low probability
-    graph.data[graph.data < (graph.data.max() / float(n_epochs)) + 1e-3] = 0.0
-    graph.eliminate_zeros()
+    if len(graph.data) >0:
+        graph.data[graph.data < (graph.data.max() / float(n_epochs)) + 1e-3] = 0.0
+        graph.eliminate_zeros()
 
     head = graph.row
     tail = graph.col
