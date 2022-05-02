@@ -2,6 +2,7 @@ import os
 import json
 
 import numpy as np
+from sklearn import neighbors
 
 from singleVis.eval.evaluate import *
 from singleVis.backend import *
@@ -185,13 +186,16 @@ class Evaluator:
             low_dists[:, t] = low_dist
         
         # find the index of top k dists
+        # argsort descent order
         high_orders = np.argsort(high_dists, axis=1)
         low_orders = np.argsort(low_dists, axis=1)
-        high_rankings = np.zeros((high_orders.shape[0], n_neighbors), dtype=int)
-        low_rankings = np.zeros((high_orders.shape[0], n_neighbors), dtype=int)
-        for i in range(len(high_orders)):
-            high_rankings[i] = np.argwhere(high_orders[i]<n_neighbors).squeeze()
-            low_rankings[i] = np.argwhere(low_orders[i]<n_neighbors).squeeze()
+        # high_rankings = np.zeros((high_orders.shape[0], n_neighbors), dtype=int)
+        # low_rankings = np.zeros((high_orders.shape[0], n_neighbors), dtype=int)
+        # for i in range(len(high_orders)):
+        #     high_rankings[i] = np.argwhere(high_orders[i]<n_neighbors).squeeze()
+        #     low_rankings[i] = np.argwhere(low_orders[i]<n_neighbors).squeeze()
+        high_rankings = high_orders[:, 1:n_neighbors+1]
+        low_rankings = low_orders[:, 1:n_neighbors+1]
         
         corr = np.zeros(len(high_dists))
         for i in range(len(data)):
@@ -225,14 +229,14 @@ class Evaluator:
         # find the index of top k dists
         high_orders = np.argsort(high_dists, axis=1)
         low_orders = np.argsort(low_dists, axis=1)
-        high_rankings = np.zeros((high_orders.shape[0], n_neighbors), dtype=int)
-        low_rankings = np.zeros((low_orders.shape[0], n_neighbors), dtype=int)
-        for i in range(len(high_orders)):
-            high_rankings[i] = np.argwhere(high_orders[i]<n_neighbors).squeeze()
-            low_rankings[i] = np.argwhere(low_orders[i]<n_neighbors).squeeze()
+        # high_rankings = np.zeros((high_orders.shape[0], n_neighbors), dtype=int)
+        # low_rankings = np.zeros((low_orders.shape[0], n_neighbors), dtype=int)
+        # for i in range(len(high_orders)):
+        #     high_rankings[i] = np.argwhere(high_orders[i]<n_neighbors).squeeze()
+        #     low_rankings[i] = np.argwhere(low_orders[i]<n_neighbors).squeeze()
         
-        # high_rankings = np.argsort(high_dists, axis=1)[:, :n_neighbors]
-        # low_rankings = np.argsort(low_dists, axis=1)[:, :n_neighbors]
+        high_rankings = high_orders[:, 1:n_neighbors+1]
+        low_rankings = low_orders[:, 1:n_neighbors+1]
         corr = np.zeros(len(high_dists))
         for i in range(len(data)):
             corr[i] = len(np.intersect1d(high_rankings[i], low_rankings[i]))
@@ -354,14 +358,15 @@ class Evaluator:
         evaluation[n_key]["nn_test"] = dict()
         evaluation[n_key]["b_train"] = dict()
         evaluation[n_key]["b_test"] = dict()
-        evaluation[n_key]["st_nn_train"] = dict()
-        evaluation[n_key]["st_nn_test"] = dict()
+        # evaluation[n_key]["st_nn_train"] = dict()
+        # evaluation[n_key]["st_nn_test"] = dict()
         evaluation["ppr_train"] = dict()
         evaluation["ppr_test"] = dict()
         evaluation["tnn_train"] = dict()
         evaluation["tnn_test"] = dict()
 
-        for epoch in range(self.data_provider.s, self.data_provider.e+1, self.data_provider.p):
+        # for epoch in range(self.data_provider.s, self.data_provider.e+1, self.data_provider.p):
+        for epoch in [self.data_provider.s, (self.data_provider.s + self.data_provider.e)//2, self.data_provider.e]:
 
             evaluation[n_key]["nn_train"][epoch] = self.eval_nn_train(epoch, n_neighbors)
             evaluation[n_key]["nn_test"][epoch] = self.eval_nn_test(epoch, n_neighbors)
@@ -373,15 +378,10 @@ class Evaluator:
             evaluation["ppr_test"][epoch] = self.eval_inv_test(epoch)
             evaluation["tnn_train"][epoch] = dict()
             evaluation["tnn_test"][epoch] = dict()
-            for k in [1,3,5,7]:
-                evaluation["tnn_train"][epoch][k] = self.eval_temporal_nn_train(epoch, k)
-                evaluation["tnn_test"][epoch][k] = self.eval_temporal_nn_test(epoch, k)
-        
-        # TODO maybe one for each epoch?
-        train_val = self.eval_spatial_temporal_nn_train(n_neighbors, 512)
-        evaluation[n_key]["st_nn_train"] = train_val
-        test_val = self.eval_spatial_temporal_nn_test(n_neighbors, 512)
-        evaluation[n_key]["st_nn_test"] = test_val
+
+            k = 5
+            evaluation["tnn_train"][epoch][k] = self.eval_temporal_nn_train(epoch, k)
+            evaluation["tnn_test"][epoch][k] = self.eval_temporal_nn_test(epoch, k)
 
         t_train_val, t_train_std = self.eval_temporal_train(n_neighbors)
         evaluation[n_key]["temporal_train_mean"] = t_train_val
