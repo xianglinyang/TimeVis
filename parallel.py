@@ -54,6 +54,7 @@ if __name__ == "__main__":
     EPOCH_START = config.dataset_config[DATASET]["EPOCH_START"]
     EPOCH_END = config.dataset_config[DATASET]["EPOCH_END"]
     EPOCH_PERIOD = config.dataset_config[DATASET]["EPOCH_PERIOD"]
+    HIDDEN_LAYER = config.dataset_config[DATASET]["HIDDEN_LAYER"]
 
     # define hyperparameters
     DEVICE = torch.device("cuda:{:d}".format(GPU_ID) if torch.cuda.is_available() else "cpu")
@@ -81,7 +82,7 @@ if __name__ == "__main__":
     if PREPROCESS:
         data_provider.initialize(LEN//10, l_bound=L_BOUND)
 
-    model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256)
+    model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256, hidden_layer=HIDDEN_LAYER)
     negative_sample_rate = 5
     min_dist = .1
     _a, _b = find_ab_params(1.0, min_dist)
