@@ -11,9 +11,9 @@ import seaborn as sns
 
 def main():
     datasets = ["mnist", "fmnist", "cifar10"]
-    selected_epochs = [1, 4, 10]
+    selected_epochs_dict = {"mnist":[4, 12, 20],"fmnist":[10,30,50], "cifar10":[40, 120,200]}
     # k_neighbors = [10, 15, 20]
-    k_neighbors = [3,5,7]
+    k_neighbors = [5]
     col = np.array(["dataset", "method", "type", "hue", "k", "period", "eval"])
     df = pd.DataFrame({}, columns=col)
 
@@ -21,9 +21,10 @@ def main():
         for i in range(3): # dataset
             dataset = datasets[i]
             data = np.array([])
+            selected_epochs = selected_epochs_dict[dataset]
             # load data from evaluation.json
             # DVI
-            content_path = "/home/xianglin/projects/DVI_data/TemporalExp/resnet18_{}".format(dataset)
+            content_path = "/home/xianglin/projects/DVI_data/resnet18_{}".format(dataset)
             eval_path = os.path.join(content_path, "Model", "time_step2_A.json")
             for epoch_id in range(3):
                 epoch  = selected_epochs[epoch_id]
@@ -38,13 +39,13 @@ def main():
                     data = np.concatenate((data, np.array([[dataset, "DVI", "Train", "DVI-Train",  "{}".format(k),"{}".format(str(epoch_id)), nn_train]])), axis=0)
                 data = np.concatenate((data, np.array([[dataset, "DVI", "Test", "DVI-Test","{}".format(k), "{}".format(str(epoch_id)), nn_test]])), axis=0)
 
-            eval_path = "/home/xianglin/projects/DVI_data/TemporalExp/resnet18_{}/Model/test_evaluation.json".format(dataset)
+            eval_path = "/home/xianglin/projects/DVI_data/resnet18_{}/Model/test_evaluation_tnn.json".format(dataset)
             with open(eval_path, "r") as f:
                     eval = json.load(f)
             for epoch_id  in range(3):
                 epoch = selected_epochs[epoch_id]
-                nn_train = round(eval["ranking_train"][str(epoch)][str(k)], 3)
-                nn_test = round(eval["ranking_test"][str(epoch)][str(k)], 3)
+                nn_train = round(eval["tnn_train"][str(epoch)][str(k)], 3)
+                nn_test = round(eval["tnn_test"][str(epoch)][str(k)], 3)
 
                 data = np.concatenate((data, np.array([[dataset, "TimeVis", "Train", "TimeVis-Train", "{}".format(k), "{}".format(str(epoch_id)), nn_train]])), axis=0)
                 data = np.concatenate((data, np.array([[dataset, "TimeVis", "Test", "TimeVis-Test",  "{}".format(k), "{}".format(str(epoch_id)), nn_test]])), axis=0)
@@ -56,7 +57,7 @@ def main():
             df[["eval"]] = df[["eval"]].astype(float)
 
     #%%
-    df.to_excel("temporal.xlsx")
+    df.to_excel("./singleVis/plot/new_plot_results/temporal.xlsx")
     for k in k_neighbors:
         df_tmp = df[df["k"] == k]
         pal20c = sns.color_palette('tab20c', 20)
@@ -71,10 +72,10 @@ def main():
         }
         sns.palplot([hue_dict[i] for i in hue_dict.keys()])
 
-        axes = {'labelsize': 9,
-                'titlesize': 9,}
+        axes = {'labelsize': 15,
+                'titlesize': 15,}
         mpl.rc('axes', **axes)
-        mpl.rcParams['xtick.labelsize'] = 9
+        mpl.rcParams['xtick.labelsize'] = 15
 
         hue_list = ["DVI-Train", "DVI-Test", "TimeVis-Train", "TimeVis-Test"]
 
@@ -95,7 +96,7 @@ def main():
             legend=True
         )
         sns.move_legend(fg, "lower center", bbox_to_anchor=(.42, 0.92), ncol=4, title=None, frameon=False)
-        mpl.pyplot.setp(fg._legend.get_texts(), fontsize='9')
+        mpl.pyplot.setp(fg._legend.get_texts(), fontsize='15')
 
         axs = fg.axes[0]
         max_ = df_tmp["eval"].max()
@@ -112,7 +113,7 @@ def main():
         # fg.fig.suptitle("NN preserving property")
 
         fg.savefig(
-            "temporal_{}.png".format(k),
+            "./singleVis/plot/new_plot_results/temporal_{}.pdf".format(k),
             dpi=300,
             bbox_inches="tight",
             pad_inches=0.0,
