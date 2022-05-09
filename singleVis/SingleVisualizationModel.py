@@ -13,21 +13,47 @@ class SingleVisualizationModel(nn.Module):
     
     # TODO find the best model architecture
     def _init_autoencoder(self):
+        # self.encoder = nn.Sequential(
+        #     nn.Linear(self.input_dims, self.units),
+        #     nn.ReLU(True),
+        #     nn.Linear(self.units, self.units),
+        #     nn.ReLU(True),
+        #     nn.Linear(self.units, self.units),
+        #     nn.ReLU(True),
+        #     nn.Linear(self.units, self.units),
+        #     nn.ReLU(True),
+        #     # nn.Linear(self.units, self.units),
+        #     # nn.ReLU(True),
+        #     nn.Linear(self.units, self.output_dims)
+        # )
+        # self.decoder = nn.Sequential(
+        #     nn.Linear(self.output_dims, self.units),
+        #     nn.ReLU(True),
+        #     nn.Linear(self.units, self.units),
+        #     nn.ReLU(True),
+        #     nn.Linear(self.units, self.units),
+        #     nn.ReLU(True),
+        #     nn.Linear(self.units, self.units),
+        #     nn.ReLU(True),
+        #     # nn.Linear(self.units, self.units),
+        #     # nn.ReLU(True),
+        #     nn.Linear(self.units, self.input_dims)
+        # )
         
         self.encoder = nn.Sequential(
             nn.Linear(self.input_dims, self.units),
             nn.ReLU(True))
         for h in range(self.hidden_layer):
-            self.encoder.add_module("{}".format(2*h), nn.Linear(self.units, self.units))
-            self.encoder.add_module("{}".format(2*h), nn.ReLU(True))
+            self.encoder.add_module("{}".format(2*h+2), nn.Linear(self.units, self.units))
+            self.encoder.add_module("{}".format(2*h+3), nn.ReLU(True))
         self.encoder.add_module("{}".format(2*(self.hidden_layer+1)), nn.Linear(self.units, self.output_dims))
 
         self.decoder = nn.Sequential(
             nn.Linear(self.output_dims, self.units),
             nn.ReLU(True))
         for h in range(self.hidden_layer):
-            self.encoder.add_module("{}".format(2*h), nn.Linear(self.units, self.units))
-            self.encoder.add_module("{}".format(2*h), nn.ReLU(True))
+            self.decoder.add_module("{}".format(2*h+2), nn.Linear(self.units, self.units))
+            self.decoder.add_module("{}".format(2*h+3), nn.ReLU(True))
         self.decoder.add_module("{}".format(2*(self.hidden_layer+1)), nn.Linear(self.units, self.input_dims))
 
     def forward(self, edge_to, edge_from):
