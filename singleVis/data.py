@@ -1,5 +1,6 @@
 import os
 import gc
+import re
 import time
 
 from singleVis.utils import *
@@ -45,6 +46,17 @@ class DataProvider:
         del testing_data
         gc.collect()
         return test_num
+    
+    @property
+    def representation_dim(self):
+        train_data_loc = os.path.join(self.model_path, "Epoch_{:d}".format(self.s), "train_data.npy")
+        try:
+            train_data = np.load(train_data_loc)
+            repr_dim = np.prod(train_data.shape[1:])
+            return repr_dim
+        except Exception as e:
+            return None
+
 
     def _meta_data(self):
         time_inference = list()

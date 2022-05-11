@@ -6,8 +6,7 @@ import numpy as np
 from pynndescent import NNDescent
 from sklearn.neighbors import NearestNeighbors
 from sklearn.manifold import trustworthiness
-from scipy.stats import kendalltau
-from scipy.stats import pearsonr
+from scipy.stats import kendalltau, spearmanr, pearsonr
 
 
 def evaluate_proj_nn_perseverance_knn(data, embedding, n_neighbors, metric="euclidean"):
@@ -199,18 +198,18 @@ def evaluate_proj_temporal_perseverance_entropy(alpha, delta_x):
 
     return corr.mean()
 
-def evaluate_proj_temporal_temporal_corr(high_rank, low_rank):
+
+def evaluate_proj_temporal_global_corr(high_rank, low_rank):
     l = len(high_rank)
     tau_l = np.zeros(l)
+    p_l = np.zeros(l)
     for i in range(l):
         r1 = high_rank[i]
         r2 = low_rank[i]
-        tau, _ = kendalltau(r1, r2)
-        # tau, _ = pearsonr(r1, r2)
-
+        tau, p = spearmanr(r1, r2)
         tau_l[i] = tau
-    # return tau_l.mean(), tau_l.std()
-    return tau_l
+        p_l[i] = p
+    return tau_l, p_l
 
 
 def evaluate_keep_B(low_B, grid_view, decision_view, threshold=0.8):
@@ -250,7 +249,3 @@ def evaluate_keep_B(low_B, grid_view, decision_view, threshold=0.8):
 
     # return the ratio of boundary points that still lie on boundary after dimension reduction
     return np.sum(c)/len(c)
-
-def evaluate_temporal_epoch_corr(dists, embedding_dists):
-    corr, _ = pearsonr(dists, embedding_dists)
-    return corr

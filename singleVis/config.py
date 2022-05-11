@@ -27,29 +27,6 @@ dataset_config = {
         }
         
     },
-    "online": {
-        "TRAINING_LEN": 50000,
-        "TESTING_LEN": 10000,
-        "LAMBDA":10.,
-        "L_BOUND":0.6,
-        "MAX_HAUSDORFF":0.2,
-        "ALPHA":0,
-        "BETA":1,
-        "INIT_NUM":300,
-        "HIDDEN_LAYER":3,
-        "EPOCH_START": 1,
-        "EPOCH_END": 11,
-        "EPOCH_PERIOD": 1,
-        "training_config":{
-            "N_NEIGHBORS":15,
-            "MAX_EPOCH": 6,
-            "S_N_EPOCHS": 5,
-            "B_N_EPOCHS":1,
-            "T_N_EPOCHS": 100,
-            "PATIENT": 3,    # early stopping patient
-        }
-        
-    },
     "mnist": {
         "NET": "resnet18",
         "TRAINING_LEN": 60000,
@@ -69,52 +46,6 @@ dataset_config = {
             "MAX_EPOCH": 30,
             "S_N_EPOCHS": 3,
             "B_N_EPOCHS":3,#1
-            "T_N_EPOCHS": 100,
-            "PATIENT": 3,    # early stopping patient
-        }
-    },
-    "mnist_full": {
-        "NET":"resnet18",
-        "TRAINING_LEN": 60000,
-        "TESTING_LEN": 10000,
-        "LAMBDA":1.,
-        "L_BOUND":0.4,
-        "MAX_HAUSDORFF":0.25,
-        "ALPHA":1,# 1
-        "BETA":1,#1
-        "HIDDEN_LAYER":3,
-        "INIT_NUM":300,
-        "EPOCH_START": 1,
-        "EPOCH_END": 20,
-        "EPOCH_PERIOD": 1,
-        "training_config":{
-            "N_NEIGHBORS":15,
-            "MAX_EPOCH": 20,
-            "S_N_EPOCHS": 5,
-            "B_N_EPOCHS":5,
-            "T_N_EPOCHS": 20,
-            "PATIENT": 3,    # early stopping patient
-        }
-    },
-    "mnist_mlp": {
-        "NET":"mlp3",
-        "TRAINING_LEN": 60000,
-        "TESTING_LEN": 10000,
-        "LAMBDA":1.,
-        "L_BOUND":0.5,
-        "MAX_HAUSDORFF":0.25,
-        "ALPHA":1,
-        "BETA":1,
-        "INIT_NUM":300,
-        "HIDDEN_LAYER":3,
-        "EPOCH_START": 1,
-        "EPOCH_END": 15,
-        "EPOCH_PERIOD": 1,
-        "training_config":{
-            "N_NEIGHBORS":15,
-            "MAX_EPOCH": 6,
-            "S_N_EPOCHS": 5,
-            "B_N_EPOCHS":5,#1
             "T_N_EPOCHS": 100,
             "PATIENT": 3,    # early stopping patient
         }
@@ -140,6 +71,53 @@ dataset_config = {
             "B_N_EPOCHS":5,
             "T_N_EPOCHS": 50,
             "PATIENT": 4,    # early stopping patient
+        }
+    },
+    "mnist_mlp": {
+        "NET":"mlp3",
+        "TRAINING_LEN": 60000,
+        "TESTING_LEN": 10000,
+        "LAMBDA":1.,
+        "L_BOUND":0.5,
+        "MAX_HAUSDORFF":0.25,
+        "ALPHA":1,
+        "BETA":1,
+        "INIT_NUM":300,
+        "HIDDEN_LAYER":3,
+        "EPOCH_START": 1,
+        "EPOCH_END": 15,
+        "EPOCH_PERIOD": 1,
+        "training_config":{
+            "N_NEIGHBORS":15,
+            "MAX_EPOCH": 6,
+            "S_N_EPOCHS": 5,
+            "B_N_EPOCHS":5,#1
+            "T_N_EPOCHS": 100,
+            "PATIENT": 3,    # early stopping patient
+        }
+    },
+    # hyperparameter for sequence selection
+    "mnist_full": {
+        "NET":"resnet18",
+        "TRAINING_LEN": 60000,
+        "TESTING_LEN": 10000,
+        "LAMBDA":1.,
+        "L_BOUND":0.4,
+        "MAX_HAUSDORFF":0.25,
+        "ALPHA":1,# 1
+        "BETA":1,#1
+        "HIDDEN_LAYER":3,
+        "INIT_NUM":300,
+        "EPOCH_START": 1,
+        "EPOCH_END": 20,
+        "EPOCH_PERIOD": 1,
+        "training_config":{
+            "N_NEIGHBORS":15,
+            "MAX_EPOCH": 20,
+            "S_N_EPOCHS": 5,
+            "B_N_EPOCHS":5,
+            "T_N_EPOCHS": 20,
+            "PATIENT": 3,    # early stopping patient
         }
     },
     "fmnist_full": {

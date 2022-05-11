@@ -1,3 +1,4 @@
+from sklearn import datasets
 import torch
 import sys
 import os
@@ -40,6 +41,7 @@ INIT_NUM = config.dataset_config[DATASET]["INIT_NUM"]
 EPOCH_START = config.dataset_config[DATASET]["EPOCH_START"]
 EPOCH_END = config.dataset_config[DATASET]["EPOCH_END"]
 EPOCH_PERIOD = config.dataset_config[DATASET]["EPOCH_PERIOD"]
+HIDDEN_LAYER = config.dataset_config[DATASET]["HIDDEN_LAYER"]
 
 # define hyperparameters
 DEVICE = torch.device("cuda:{:d}".format(GPU_ID) if torch.cuda.is_available() else "cpu")
@@ -65,7 +67,7 @@ data_provider = DataProvider(content_path, net, EPOCH_START, EPOCH_END, EPOCH_PE
 if PREPROCESS:
     data_provider.initialize(LEN//10, l_bound=L_BOUND)
 
-model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256)
+model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256, hidden_layer=HIDDEN_LAYER)
 negative_sample_rate = 5
 min_dist = .1
 _a, _b = find_ab_params(1.0, min_dist)
@@ -84,31 +86,57 @@ trainer.load(file_path=os.path.join(data_provider.model_path,"tnn.pth"))
 #                                                      VISUALIZATION                                                   #
 ########################################################################################################################
 
-from singleVis.visualizer import visualizer
+# from singleVis.visualizer import visualizer
 
-vis = visualizer(data_provider, trainer.model, 200, 10, classes)
-save_dir = os.path.join(data_provider.content_path, "img")
-if not os.path.exists(save_dir):
-    os.mkdir(save_dir)
-for i in range(EPOCH_START, EPOCH_END+1, EPOCH_PERIOD):
-    vis.savefig(i, path=os.path.join(save_dir, "{}_{}_tnn.png".format(DATASET, i)))
+# vis = visualizer(data_provider, trainer.model, 200, 10, classes)
+# save_dir = os.path.join(data_provider.content_path, "img")
+# if not os.path.exists(save_dir):
+#     os.mkdir(save_dir)
+# for i in range(EPOCH_START, EPOCH_END+1, EPOCH_PERIOD):
+#     vis.savefig(i, path=os.path.join(save_dir, "{}_{}_tnn.png".format(DATASET, i)))
 ########################################################################################################################
 #                                                       EVALUATION                                                     #
 ########################################################################################################################
+EVAL_EPOCH_DICT = {
+    "mnist_full":[4, 12, 20],
+    "fmnist_full":[10, 30, 50],
+    "cifar10_full":[40, 120, 200]
+}
+eval_epochs = EVAL_EPOCH_DICT[DATASET]
 
-# evaluator = Evaluator(data_provider, trainer)
-# evaluator.save_eval(n_neighbors=15, file_name="test_evaluation_tnn")
-# evaluator.save_eval(n_neighbors=10, file_name="test_evaluation")
-# evaluator.save_eval(n_neighbors=15, file_name="test_evaluation")
-# evaluator.save_eval(n_neighbors=20, file_name="test_evaluation")
-# evaluator.eval_temporal_md_train(15)
-# evaluator.eval_temporal_md_test(15)
-# evaluator.eval_temporal_corr_train(n_grain=2)
-# evaluator.eval_temporal_corr_train(n_grain=2)
-# evaluator.eval_temporal_train(15)
-# evaluator.eval_temporal_test(15)
-# evaluator.eval_spatial_temporal_nn_train(15, 512)
-# evaluator.eval_spatial_temporal_nn_test(15, 512)
-# for epoch in range(1, 11, 1):
-    # evaluator.eval_temporal_nn_train(epoch, 3)
-    # evaluator.eval_temporal_nn_test(epoch, 3)
+evaluator = Evaluator(data_provider, trainer)
+evaluator.save_epoch_eval(eval_epochs[0], 10, temporal_k=3, save_corrs=False, file_name="test_evaluation_tnn")
+evaluator.save_epoch_eval(eval_epochs[0], 15, temporal_k=5, save_corrs=False, file_name="test_evaluation_tnn")
+evaluator.save_epoch_eval(eval_epochs[0], 20, temporal_k=7, save_corrs=False, file_name="test_evaluation_tnn")
+
+evaluator.save_epoch_eval(eval_epochs[1], 10, temporal_k=3, save_corrs=False, file_name="test_evaluation_tnn")
+evaluator.save_epoch_eval(eval_epochs[1], 15, temporal_k=5, save_corrs=False, file_name="test_evaluation_tnn")
+evaluator.save_epoch_eval(eval_epochs[1], 20, temporal_k=7, save_corrs=False, file_name="test_evaluation_tnn")
+
+evaluator.save_epoch_eval(eval_epochs[2], 10, temporal_k=3, save_corrs=False, file_name="test_evaluation_tnn")
+evaluator.save_epoch_eval(eval_epochs[2], 15, temporal_k=5, save_corrs=False, file_name="test_evaluation_tnn")
+evaluator.save_epoch_eval(eval_epochs[2], 20, temporal_k=7, save_corrs=False, file_name="test_evaluation_tnn")
+
+
+# save result
+# import json
+# save_dir = os.path.join(data_provider.model_path, "test_evaluation_tnn.json")
+# if not os.path.exists(save_dir):
+#     evaluation = dict()
+# else:
+#     f = open(save_dir, "r")
+#     evaluation = json.load(f)
+#     f.close()
+# evaluation["tnn_train"] = dict()
+# evaluation["tnn_test"] = dict()
+
+# for epoch in eval_epochs:
+#     evaluation["tnn_train"][epoch] = dict()
+#     evaluation["tnn_test"][epoch] = dict()
+
+#     k = 5
+#     evaluation["tnn_train"][epoch][k] = evaluator.eval_temporal_nn_train(epoch, k)
+#     evaluation["tnn_test"][epoch][k] = evaluator.eval_temporal_nn_test(epoch, k)
+
+# with open(save_dir, "w") as f:
+#     json.dump(evaluation, f)
