@@ -116,27 +116,3 @@ evaluator.save_epoch_eval(eval_epochs[1], 20, temporal_k=7, save_corrs=False, fi
 evaluator.save_epoch_eval(eval_epochs[2], 10, temporal_k=3, save_corrs=True, file_name="test_evaluation_tnn")
 evaluator.save_epoch_eval(eval_epochs[2], 15, temporal_k=5, save_corrs=False, file_name="test_evaluation_tnn")
 evaluator.save_epoch_eval(eval_epochs[2], 20, temporal_k=7, save_corrs=False, file_name="test_evaluation_tnn")
-
-
-# save result
-# import json
-# save_dir = os.path.join(data_provider.model_path, "test_evaluation_tnn.json")
-# if not os.path.exists(save_dir):
-#     evaluation = dict()
-# else:
-#     f = open(save_dir, "r")
-#     evaluation = json.load(f)
-#     f.close()
-# evaluation["tnn_train"] = dict()
-# evaluation["tnn_test"] = dict()
-
-# for epoch in eval_epochs:
-#     evaluation["tnn_train"][epoch] = dict()
-#     evaluation["tnn_test"][epoch] = dict()
-
-#     k = 5
-#     evaluation["tnn_train"][epoch][k] = evaluator.eval_temporal_nn_train(epoch, k)
-#     evaluation["tnn_test"][epoch][k] = evaluator.eval_temporal_nn_test(epoch, k)
-
-# with open(save_dir, "w") as f:
-#     json.dump(evaluation, f)
