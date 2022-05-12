@@ -11,7 +11,7 @@ import argparse
 def main():
     datasets = ["mnist", "fmnist", "cifar10"]
     selected_epochs_dict = {"mnist":[4, 12, 20],"fmnist":[10,30,50], "cifar10":[40, 120,200]}
-    k_neighbors = [15]
+    k_neighbors = [10, 15, 20]
     col = np.array(["dataset", "method", "type", "hue", "k", "period", "eval"])
     df = pd.DataFrame({}, columns=col)
 
@@ -113,11 +113,11 @@ def main():
 
         #%%
         fg.savefig(
-            "./singleVis/plot/new_plot_results/boundary_{}.pdf".format(k),
+            "./singleVis/plot/new_plot_results/boundary_{}.png".format(k),
             dpi=300,
             bbox_inches="tight",
             pad_inches=0.0,
-            transparent=True,
+            # transparent=True,
         )
 
 if __name__ == "__main__":

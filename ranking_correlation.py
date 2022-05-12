@@ -2,9 +2,7 @@ import torch
 import sys
 import os
 import numpy as np
-
 import argparse
-
 from umap.umap_ import find_ab_params
 
 from singleVis.SingleVisualizationModel import SingleVisualizationModel
@@ -12,7 +10,7 @@ from singleVis.losses import SingleVisLoss, UmapLoss, ReconstructionLoss
 from singleVis.trainer import SingleVisTrainer
 from singleVis.data import DataProvider
 import singleVis.config as config
-from singleVis.eval.evaluator import Evaluator
+from scipy import stats
 
 ########################################################################################################################
 #                                                     LOAD PARAMETERS                                                  #
@@ -89,32 +87,32 @@ trainer.load(file_path=os.path.join(data_provider.model_path,"tnn.pth"))
 
 EPOCH = EPOCH_END
 # train
-# all_train_repr = np.zeros((EPOCH,LEN,512))
-# for i in range(1,EPOCH_END + 1, 1):
-#     all_train_repr[i-1] = data_provider.train_representation(i)
+all_train_repr = np.zeros((EPOCH,LEN,512))
+for i in range(1,EPOCH_END + 1, 1):
+    all_train_repr[i-1] = data_provider.train_representation(i)
 
-# model = trainer.model
-# low_repr = np.zeros((EPOCH,LEN,2))
-# for e in range(EPOCH):
-#     low_repr[e] = model.encoder(torch.from_numpy(all_train_repr[e]).to(device=DEVICE).float()).detach().cpu().numpy()
-# from scipy import stats
-# # shape (200, 50000, 512)
-# epochs = [i for i in range(EPOCH)]
-# corrs = np.zeros((EPOCH,LEN))
-# ps = np.zeros((EPOCH,LEN))
-# for i in range(LEN):
-#     high_embeddings = all_train_repr[:,i,:].squeeze()
-#     low_embeddings = low_repr[:,i,:].squeeze()
+model = trainer.model
+low_repr = np.zeros((EPOCH,LEN,2))
+for e in range(EPOCH):
+    low_repr[e] = model.encoder(torch.from_numpy(all_train_repr[e]).to(device=DEVICE).float()).detach().cpu().numpy()
+from scipy import stats
+# shape (200, 50000, 512)
+epochs = [i for i in range(EPOCH)]
+corrs = np.zeros((EPOCH,LEN))
+ps = np.zeros((EPOCH,LEN))
+for i in range(LEN):
+    high_embeddings = all_train_repr[:,i,:].squeeze()
+    low_embeddings = low_repr[:,i,:].squeeze()
 
-#     for e in epochs:
-#         high_dists = np.linalg.norm(high_embeddings - high_embeddings[e], axis=1)
-#         low_dists = np.linalg.norm(low_embeddings - low_embeddings[e], axis=1)
-#         corr, p = stats.spearmanr(high_dists, low_dists)
-#         corrs[e][i] = corr
-#         ps[e][i] = p
+    for e in epochs:
+        high_dists = np.linalg.norm(high_embeddings - high_embeddings[e], axis=1)
+        low_dists = np.linalg.norm(low_embeddings - low_embeddings[e], axis=1)
+        corr, p = stats.spearmanr(high_dists, low_dists)
+        corrs[e][i] = corr
+        ps[e][i] = p
 
-# np.save(os.path.join(content_path,"Model", "tnn_corrs.npy"), corrs)
-# np.save(os.path.join(content_path,"Model", "tnn_ps.npy"), ps)
+np.save(os.path.join(content_path, "Model", "tnn_corrs.npy"), corrs)
+np.save(os.path.join(content_path, "Model", "tnn_ps.npy"), ps)
 
 # test
 all_test_repr = np.zeros((EPOCH,TEST_LEN,512))
@@ -125,8 +123,7 @@ for i in range(1,EPOCH_END + 1, 1):
 low_repr = np.zeros((EPOCH,TEST_LEN,2))
 for e in range(EPOCH):
     low_repr[e] = model.encoder(torch.from_numpy(all_test_repr[e]).to(device=DEVICE).float()).detach().cpu().numpy()
-from scipy import stats
-# shape (200, 50000, 512)
+
 epochs = [i for i in range(EPOCH)]
 corrs = np.zeros((EPOCH,TEST_LEN))
 ps = np.zeros((EPOCH,TEST_LEN))
@@ -141,5 +138,5 @@ for i in range(TEST_LEN):
         corrs[e][i] = corr
         ps[e][i] = p
 
-np.save(os.path.join(content_path,"Model", "tnn_test_corrs.npy"), corrs)
-np.save(os.path.join(content_path,"Model", "tnn_test_ps.npy"), ps)
+np.save(os.path.join(content_path, "Model", "tnn_test_corrs.npy"), corrs)
+np.save(os.path.join(content_path, "Model", "tnn_test_ps.npy"), ps)

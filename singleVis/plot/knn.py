@@ -10,10 +10,9 @@ import seaborn as sns
 
 
 def main():
-    datasets = ["mnist", "fmnist", "cifar10"]
+    datasets = ["mnist","fmnist", "cifar10"]
     selected_epochs_dict = {"mnist":[4, 12, 20],"fmnist":[10,30,50], "cifar10":[40, 120,200]}
-    # k_neighbors = [10, 15, 20]
-    k_neighbors = [5]
+    k_neighbors = [3, 5, 7]
     col = np.array(["dataset", "method", "type", "hue", "k", "period", "eval"])
     df = pd.DataFrame({}, columns=col)
 
@@ -25,13 +24,13 @@ def main():
             # load data from evaluation.json
             # DVI
             content_path = "/home/xianglin/projects/DVI_data/resnet18_{}".format(dataset)
-            eval_path = os.path.join(content_path, "Model", "time_step2_A.json")
             for epoch_id in range(3):
                 epoch  = selected_epochs[epoch_id]
+                eval_path = os.path.join(content_path, "Model", "Epoch_{}".format(epoch), "evaluation_step2_A.json")
                 with open(eval_path, "r") as f:
                     eval = json.load(f)
-                nn_train = round(eval["temporal_train_ranking"][str(epoch)][str(k)], 3)
-                nn_test = round(eval["temporal_test_ranking"][str(epoch)][str(k)], 3)
+                nn_train = round(eval["tnn_train_{}".format(str(k))], 3)
+                nn_test = round(eval["tnn_test_{}".format(str(k))], 3)
 
                 if len(data) == 0:
                     data = np.array([[dataset, "DVI", "Train", "DVI-Train", "{}".format(k), "{}".format(str(epoch_id)), nn_train]])
@@ -113,11 +112,11 @@ def main():
         # fg.fig.suptitle("NN preserving property")
 
         fg.savefig(
-            "./singleVis/plot/new_plot_results/temporal_{}.pdf".format(k),
+            "./singleVis/plot/new_plot_results/tnn_{}.png".format(k),
             dpi=300,
             bbox_inches="tight",
             pad_inches=0.0,
-            transparent=True,
+            # transparent=True,
         )
 
 

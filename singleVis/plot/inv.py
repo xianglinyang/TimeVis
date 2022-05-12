@@ -11,7 +11,6 @@ import seaborn as sns
 def main():
     datasets = ["mnist", "fmnist", "cifar10"]
     selected_epochs_dict = {"mnist":[4, 12, 20],"fmnist":[10,30,50], "cifar10":[40, 120,200]}
-    k_neighbors = [15]
     col = np.array(["dataset", "method", "type", "hue", "period", "eval"])
     df = pd.DataFrame({}, columns=col)
 
@@ -111,11 +110,11 @@ def main():
     # fg.fig.suptitle("Prediction Preserving property")
 
     fg.savefig(
-        "./singleVis/plot/new_plot_results/inv_accu.pdf",
+        "./singleVis/plot/new_plot_results/inv_accu.png",
         dpi=300,
         bbox_inches="tight",
         pad_inches=0.0,
-        transparent=True,
+        # transparent=True,
     )
 
 
