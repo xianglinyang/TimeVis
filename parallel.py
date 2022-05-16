@@ -38,6 +38,7 @@ if __name__ == "__main__":
     parser.add_argument('-g',"--gpu_id", type=int, choices=[0,1,2,3], default=0)
     args = parser.parse_args()
 
+
     CONTENT_PATH = args.content_path
     DATASET = args.dataset
     PREPROCESS = args.preprocess
@@ -160,9 +161,7 @@ if __name__ == "__main__":
     ########################################################################################################################
     #                                                      VISUALIZATION                                                   #
     ########################################################################################################################
-
     from singleVis.visualizer import visualizer
-
     vis = visualizer(data_provider, trainer.model, 200, 10, classes)
     save_dir = os.path.join(data_provider.content_path, "img")
     if not os.path.exists(save_dir):
@@ -174,6 +173,22 @@ if __name__ == "__main__":
     ########################################################################################################################
     #                                                       EVALUATION                                                     #
     ########################################################################################################################
+    EVAL_EPOCH_DICT = {
+        "mnist_p":[4, 12, 20],
+        "fmnist_p":[10, 30, 50],
+        "cifar10_p":[40, 120, 200]
+    }
+    eval_epochs = EVAL_EPOCH_DICT[DATASET]
 
     evaluator = Evaluator(data_provider, trainer)
-    evaluator.save_eval(n_neighbors=15, file_name="test_evaluation_p")
+    # evaluator.save_epoch_eval(eval_epochs[0], 10, temporal_k=3, save_corrs=True, file_name="test_evaluation_p")
+    evaluator.save_epoch_eval(eval_epochs[0], 15, temporal_k=5, save_corrs=False, file_name="test_evaluation_p")
+    # evaluator.save_epoch_eval(eval_epochs[0], 20, temporal_k=7, save_corrs=False, file_name="test_evaluation_p")
+
+    # evaluator.save_epoch_eval(eval_epochs[1], 10, temporal_k=3, save_corrs=True, file_name="test_evaluation_p")
+    evaluator.save_epoch_eval(eval_epochs[1], 15, temporal_k=5, save_corrs=False, file_name="test_evaluation_p")
+    # evaluator.save_epoch_eval(eval_epochs[1], 20, temporal_k=7, save_corrs=False, file_name="test_evaluation_p")
+
+    # evaluator.save_epoch_eval(eval_epochs[2], 10, temporal_k=3, save_corrs=True, file_name="test_evaluation_p")
+    evaluator.save_epoch_eval(eval_epochs[2], 15, temporal_k=5, save_corrs=False, file_name="test_evaluation_p")
+    # evaluator.save_epoch_eval(eval_epochs[2], 20, temporal_k=7, save_corrs=False, file_name="test_evaluation_p")
