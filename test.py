@@ -31,6 +31,7 @@ DATASET = args.dataset
 PREPROCESS = args.preprocess
 GPU_ID = args.gpu_id
 
+NET = config.dataset_config[DATASET]["NET"]
 LEN = config.dataset_config[DATASET]["TRAINING_LEN"]
 LAMBDA = config.dataset_config[DATASET]["LAMBDA"]
 L_BOUND = config.dataset_config[DATASET]["L_BOUND"]
@@ -55,8 +56,9 @@ MAX_EPOCH = config.dataset_config[DATASET]["training_config"]["MAX_EPOCH"]
 content_path = CONTENT_PATH
 sys.path.append(content_path)
 
-from Model.model import *
-net = resnet18()
+import Model.model as subject_model
+# net = resnet18()
+net = eval("subject_model.{}()".format(NET))
 classes = ("airplane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck")
 
 

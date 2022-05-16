@@ -167,4 +167,28 @@ dataset_config = {
         }
         
     },
+    # hyperparameter for parallel selection
+    "mnist_p":{
+        "NET":"resnet18",
+        "TRAINING_LEN": 60000,
+        "TESTING_LEN": 10000,
+        "LAMBDA":1.,
+        "L_BOUND":0.4,
+        "MAX_HAUSDORFF":0.28,
+        "ALPHA":0,# 1
+        "BETA":1,#1
+        "HIDDEN_LAYER":4,
+        "INIT_NUM":300,
+        "EPOCH_START": 1,
+        "EPOCH_END": 20,
+        "EPOCH_PERIOD": 1,
+        "training_config":{
+            "N_NEIGHBORS":15,
+            "MAX_EPOCH": 20,
+            "S_N_EPOCHS": 5,
+            "B_N_EPOCHS": 5,
+            "T_N_EPOCHS": 10,
+            "PATIENT": 3,    # early stopping patient
+        }
+    },
 }

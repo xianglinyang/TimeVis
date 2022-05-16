@@ -87,6 +87,7 @@ if __name__ == "__main__":
     EPOCH_START = config.dataset_config[DATASET]["EPOCH_START"]
     EPOCH_END = config.dataset_config[DATASET]["EPOCH_END"]
     EPOCH_PERIOD = config.dataset_config[DATASET]["EPOCH_PERIOD"]
+    HIDDEN_LAYER = config.dataset_config[DATASET]["HIDDEN_LAYER"]
 
     # define hyperparameters
     DEVICE = torch.device("cuda:{:d}".format(GPU_ID) if torch.cuda.is_available() else "cpu")
@@ -103,7 +104,6 @@ if __name__ == "__main__":
     from Model.model import *
     net = resnet18()
     classes = ("airplane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck")
-
     data_provider = DataProvider(content_path, net, EPOCH_START, EPOCH_END, EPOCH_PERIOD, split=-1, device=DEVICE, verbose=1)
 
     if DATASET == "fmnist":
