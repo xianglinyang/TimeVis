@@ -69,9 +69,6 @@ class DataProvider:
 
         for n_epoch in range(self.s, self.e + 1, self.p):
             t_s = time.time()
-            index_file = os.path.join(self.model_path, "Epoch_{:d}".format(n_epoch), "index.json")
-            index = load_labelled_data_index(index_file)
-            training_data = training_data[index]
 
             # make it possible to choose a subset of testing data for testing
             test_index_file = os.path.join(self.model_path, "Epoch_{:d}".format(n_epoch), "test_index.json")
