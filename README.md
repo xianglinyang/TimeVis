@@ -5,7 +5,7 @@ Official source code for IJCAI 2022 Paper: **Temporality Spatialization: A Scala
 ### Download dependencies
 Please run the following commands to install all dependencies:
 ```console
-~$ pip install -r requirements.txt
+$ pip install -r requirements.txt
 ```
 ### Run 
 1. Prepare data
@@ -37,11 +37,11 @@ data(input path)
 
 2. Train a visualization model
 ```console
-~$ python main.py ---content_path /path/to/subject_models --dataset dataset_name -g gpu_id
+$ python main.py ---content_path /path/to/subject_models --dataset dataset_name -g gpu_id
 ```
 3. Evaluate visualization model
 ```console
-~$ python test.py ---content_path /path/to/subject_models --dataset dataset_name -g gpu_id
+$ python test.py ---content_path /path/to/subject_models --dataset dataset_name -g gpu_id
 ```
 
 ### Training hyperparameters
