@@ -488,11 +488,11 @@ class Evaluator:
         t_true = np.logical_and(close_t_pred==predictions_t, close_t_B == t_B)
         return np.sum(np.logical_and(s_true[selected], t_true[selected])), np.sum(s_true[selected]), np.sum(t_true[selected]), np.sum(selected)
     
-    def eval_fixing_invariants_train(self, e_s, e_t, low_threshold, metric="euclidean"):
+    def eval_fixing_invariants_train(self, e_s, e_t, high_threshold, low_threshold, metric="euclidean"):
         train_data_s = self.data_provider.train_representation(e_s)
         train_data_t = self.data_provider.train_representation(e_t)
 
-        _, high_threshold = find_nearest(train_data_s)
+        # _, high_threshold = find_nearest(train_data_s)
         pred_s = self.data_provider.get_pred(e_s, train_data_s)
         pred_t = self.data_provider.get_pred(e_t, train_data_t)
         softmax_s = softmax(pred_s, axis=1)
@@ -522,11 +522,11 @@ class Evaluator:
 
         return np.sum(np.logical_and(selected, low_dists<low_threshold)), np.sum(selected)
 
-    def eval_fixing_invariants_test(self, e_s, e_t, low_threshold, metric="euclidean"):
+    def eval_fixing_invariants_test(self, e_s, e_t, high_threshold, low_threshold, metric="euclidean"):
         test_data_s = self.data_provider.test_representation(e_s)
         test_data_t = self.data_provider.test_representation(e_t)
 
-        _, high_threshold = find_nearest(test_data_s)
+        # _, high_threshold = find_nearest(test_data_s)
         pred_s = self.data_provider.get_pred(e_s, test_data_s)
         pred_t = self.data_provider.get_pred(e_t, test_data_t)
         softmax_s = softmax(pred_s, axis=1)
@@ -556,7 +556,71 @@ class Evaluator:
         selected = high_dists<=high_threshold
 
         return np.sum(np.logical_and(selected, low_dists<=low_threshold)), np.sum(selected)
+    
+    def eval_proj_invariants_train(self, e, resolution=500):
+        train_data_s = self.data_provider.train_representation(e)
+        pred_s = self.data_provider.get_pred(e, train_data_s)
+        low_s = self.trainer.model.encoder(torch.from_numpy(train_data_s).to(device=self.data_provider.DEVICE).float()).detach().cpu().numpy()
+        s_B = is_B(pred_s)
+        predictions_s = pred_s.argmax(1)
 
+        # background related
+        vis = visualizer(self.data_provider, self.trainer.model, resolution, 10, list(range(10)), cmap='tab10')
+        grid_view_s, _ = vis.get_epoch_decision_view(e, resolution)
+        grid_view_s = grid_view_s.reshape(resolution*resolution, -1)
+        grid_samples_s = self.trainer.model.decoder(grid_view_s).cpu().detach().numpy()
+        grid_pred_s = self.data_provider.get_pred(e, grid_samples_s)+1e-8
+        grid_s_B = is_B(grid_pred_s)
+        grid_predictions_s = grid_pred_s.argmax(1)
+
+        # find nearest grid samples
+        high_neigh = NearestNeighbors(n_neighbors=1, radius=0.4)
+        high_neigh.fit(grid_view_s.cpu().detach().numpy())
+        _, knn_indices = high_neigh.kneighbors(low_s, n_neighbors=1, return_distance=True)
+        close_s_pred = grid_predictions_s[knn_indices].squeeze()
+        close_s_B = grid_s_B[knn_indices].squeeze()
+    
+        border_true = np.logical_and(s_B, close_s_B)
+        pred_true = np.logical_and(close_s_pred==predictions_s, np.logical_not(s_B))
+
+        print("border fixing invariants:\t{}/{}".format(np.sum(border_true), np.sum(s_B)))
+        print("prediction fixing invariants:\t{}/{}".format(np.sum(pred_true), np.sum(np.logical_not(s_B))))
+        print("invariants:\t{}/{}".format(np.sum(border_true)+np.sum(pred_true), len(train_data_s)))
+
+        return np.sum(border_true), np.sum(pred_true), len(train_data_s)
+    
+    def eval_proj_invariants_test(self, e, resolution=500):
+        test_data_s = self.data_provider.test_representation(e)
+        pred_s = self.data_provider.get_pred(e, test_data_s)
+        low_s = self.trainer.model.encoder(torch.from_numpy(test_data_s).to(device=self.data_provider.DEVICE).float()).detach().cpu().numpy()
+        s_B = is_B(pred_s)
+        predictions_s = pred_s.argmax(1)
+
+        # background related
+        vis = visualizer(self.data_provider, self.trainer.model, resolution, 10, list(range(10)), cmap='tab10')
+        grid_view_s, _ = vis.get_epoch_decision_view(e, resolution)
+        grid_view_s = grid_view_s.reshape(resolution*resolution, -1)
+        grid_samples_s = self.trainer.model.decoder(grid_view_s).cpu().detach().numpy()
+        grid_pred_s = self.data_provider.get_pred(e, grid_samples_s)+1e-8
+        grid_s_B = is_B(grid_pred_s)
+        grid_predictions_s = grid_pred_s.argmax(1)
+
+        # find nearest grid samples
+        high_neigh = NearestNeighbors(n_neighbors=1, radius=0.4)
+        high_neigh.fit(grid_view_s.cpu().detach().numpy())
+        _, knn_indices = high_neigh.kneighbors(low_s, n_neighbors=1, return_distance=True)
+        close_s_pred = grid_predictions_s[knn_indices].squeeze()
+        close_s_B = grid_s_B[knn_indices].squeeze()
+    
+        border_true = np.logical_and(s_B, close_s_B)
+        pred_true = np.logical_and(close_s_pred==predictions_s, np.logical_not(s_B))
+        
+        print("border fixing invariants:\t{}/{}".format(np.sum(border_true), np.sum(s_B)))
+        print("prediction fixing invariants:\t{}/{}".format(np.sum(pred_true), np.sum(np.logical_not(s_B))))
+        print("invariants:\t{}/{}".format(np.sum(border_true)+np.sum(pred_true), len(test_data_s)))
+
+        return np.sum(border_true), np.sum(pred_true), len(test_data_s)
+    
 
     #################################### helper functions #############################################
 
@@ -578,10 +642,10 @@ class Evaluator:
             evaluation[n_key]["nn_train"] = dict()
         if "nn_test" not in evaluation[n_key].keys():
             evaluation[n_key]["nn_test"] = dict()
-        if "b_train" not in evaluation[n_key].keys():
-            evaluation[n_key]["b_train"] = dict()
-        if "b_test" not in evaluation[n_key].keys():
-            evaluation[n_key]["b_test"] = dict()
+        # if "b_train" not in evaluation[n_key].keys():
+        #     evaluation[n_key]["b_train"] = dict()
+        # if "b_test" not in evaluation[n_key].keys():
+        #     evaluation[n_key]["b_test"] = dict()
         if "ppr_train" not in evaluation.keys():
             evaluation["ppr_train"] = dict()
         if "ppr_test" not in evaluation.keys():
@@ -595,8 +659,8 @@ class Evaluator:
         evaluation[n_key]["nn_train"][epoch_key] = self.eval_nn_train(n_epoch, n_neighbors)
         evaluation[n_key]["nn_test"][epoch_key] = self.eval_nn_test(n_epoch, n_neighbors)
 
-        evaluation[n_key]["b_train"][epoch_key] = self.eval_b_train(n_epoch, n_neighbors)
-        evaluation[n_key]["b_test"][epoch_key] = self.eval_b_test(n_epoch, n_neighbors)
+        # evaluation[n_key]["b_train"][epoch_key] = self.eval_b_train(n_epoch, n_neighbors)
+        # evaluation[n_key]["b_test"][epoch_key] = self.eval_b_test(n_epoch, n_neighbors)
 
         evaluation["ppr_train"][epoch_key] = self.eval_inv_train(n_epoch)
         evaluation["ppr_test"][epoch_key] = self.eval_inv_test(n_epoch)
@@ -609,12 +673,12 @@ class Evaluator:
         evaluation["tnn_train"][epoch_key][str(temporal_k)] = self.eval_temporal_nn_train(n_epoch, temporal_k)
         evaluation["tnn_test"][epoch_key][str(temporal_k)] = self.eval_temporal_nn_test(n_epoch, temporal_k)
 
-        t_train_val, t_train_std = self.eval_temporal_train(n_neighbors)
-        evaluation[n_key]["temporal_train_mean"] = t_train_val
-        evaluation[n_key]["temporal_train_std"] = t_train_std
-        t_test_val, t_test_std = self.eval_temporal_test(n_neighbors)
-        evaluation[n_key]["temporal_test_mean"] = t_test_val
-        evaluation[n_key]["temporal_test_std"] = t_test_std
+        # t_train_val, t_train_std = self.eval_temporal_train(n_neighbors)
+        # evaluation[n_key]["temporal_train_mean"] = t_train_val
+        # evaluation[n_key]["temporal_train_std"] = t_train_std
+        # t_test_val, t_test_std = self.eval_temporal_test(n_neighbors)
+        # evaluation[n_key]["temporal_test_mean"] = t_test_val
+        # evaluation[n_key]["temporal_test_std"] = t_test_std
 
         if save_corrs:
             corrs_train, ps_train = self.eval_temporal_global_corr_train()

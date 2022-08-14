@@ -9,7 +9,7 @@ dataset_config = {
         "TESTING_LEN": 10000,
         "LAMBDA":10.,
         "L_BOUND":0.6,
-        "MAX_HAUSDORFF":0.25,#0.2
+        "MAX_HAUSDORFF":0.24,#0.2
         "ALPHA":0,
         "BETA":1,#.1
         "HIDDEN_LAYER":3,
@@ -149,12 +149,12 @@ dataset_config = {
         "TESTING_LEN": 10000,
         "LAMBDA":10.,
         "L_BOUND":0.6,
-        "MAX_HAUSDORFF":0.2, # 0.2
+        "MAX_HAUSDORFF":0.3, # 0.2
         "ALPHA":0,#0
         "BETA":.1,#.1
         "HIDDEN_LAYER":4,
         "INIT_NUM":300,
-        "EPOCH_START": 40,
+        "EPOCH_START": 1,#40
         "EPOCH_END": 200,
         "EPOCH_PERIOD": 1,
         "training_config":{
