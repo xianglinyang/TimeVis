@@ -291,16 +291,16 @@ class Evaluator:
         return val
 
     
-    def eval_temporal_global_corr_train(self, start=None, end=None, period=None):
+    def eval_temporal_global_corr_train(self, epoch, start=None, end=None, period=None):
         # check if we use the default value
         if start is None:
             start = self.data_provider.s
             end = self.data_provider.e
             period = self.data_provider.p
         # set parameters
-        LEN = self.data_provider.train_num()
+        LEN = self.data_provider.train_num
         EPOCH = (end - start) // period + 1
-        repr_dim = self.data_provider.representation_dim()
+        repr_dim = self.data_provider.representation_dim
         all_train_repr = np.zeros((EPOCH,LEN,repr_dim))
 
         # save all representation vectors
@@ -313,33 +313,27 @@ class Evaluator:
         for e in range(EPOCH):
             low_repr[e] = model.encoder(torch.from_numpy(all_train_repr[e]).to(device=self.data_provider.DEVICE).float()).detach().cpu().numpy()
 
-        epochs = [i for i in range(start, end+1, period)]
-        corrs = np.zeros((EPOCH,LEN))
-        ps = np.zeros((EPOCH,LEN))
+        corrs = np.zeros(LEN)
+        e = (epoch - start) // period
         for i in range(LEN):
             high_embeddings = all_train_repr[:,i,:].squeeze()
             low_embeddings = low_repr[:,i,:].squeeze()
-
-            for epoch in epochs:
-                e = (epoch - start) // period
-                high_dists = np.linalg.norm(high_embeddings - high_embeddings[e], axis=1)
-                low_dists = np.linalg.norm(low_embeddings - low_embeddings[e], axis=1)
-                corr, p = stats.spearmanr(high_dists, low_dists)
-                corrs[e][i] = corr
-                ps[e][i] = p
-        return corrs, ps
+            high_dists = np.linalg.norm(high_embeddings - high_embeddings[e], axis=1)
+            low_dists = np.linalg.norm(low_embeddings - low_embeddings[e], axis=1)
+            corr, _ = stats.spearmanr(high_dists, low_dists)
+            corrs[i] = corr
+        return corrs.mean()
     
-    def eval_temporal_global_corr_test(self, start=None, end=None, period=None):
+    def eval_temporal_global_corr_test(self, epoch, start=None, end=None, period=None):
         # check if we use the default value
         if start is None:
             start = self.data_provider.s
             end = self.data_provider.e
             period = self.data_provider.p
-        TEST_LEN = self.data_provider.test_num()
+        TEST_LEN = self.data_provider.test_num
         EPOCH = (end - start) // period + 1
-        repr_dim = self.data_provider.representation_dim()
+        repr_dim = self.data_provider.representation_dim
         model = self.trainer.model
-
         all_test_repr = np.zeros((EPOCH,TEST_LEN,repr_dim))
         for i in range(start,end + 1, period):
             all_test_repr[i-1] = self.data_provider.test_representation(i)
@@ -347,23 +341,16 @@ class Evaluator:
         low_repr = np.zeros((EPOCH,TEST_LEN,2))
         for e in range(EPOCH):
             low_repr[e] = model.encoder(torch.from_numpy(all_test_repr[e]).to(device=self.data_provider.DEVICE).float()).detach().cpu().numpy()
-
-        epochs = [i for i in range(start, end+1, period)]
-        corrs = np.zeros((EPOCH,TEST_LEN))
-        ps = np.zeros((EPOCH,TEST_LEN))
-
+        corrs = np.zeros(TEST_LEN)
+        e = (epoch - start) // period
         for i in range(TEST_LEN):
             high_embeddings = all_test_repr[:,i,:].squeeze()
             low_embeddings = low_repr[:,i,:].squeeze()
-
-            for epoch in epochs:
-                e = (epoch - start) // period
-                high_dists = np.linalg.norm(high_embeddings - high_embeddings[e], axis=1)
-                low_dists = np.linalg.norm(low_embeddings - low_embeddings[e], axis=1)
-                corr, p = stats.spearmanr(high_dists, low_dists)
-                corrs[e][i] = corr
-                ps[e][i] = p
-        return corrs, ps
+            high_dists = np.linalg.norm(high_embeddings - high_embeddings[e], axis=1)
+            low_dists = np.linalg.norm(low_embeddings - low_embeddings[e], axis=1)
+            corr, _ = stats.spearmanr(high_dists, low_dists)
+            corrs[i] = corr
+        return corrs.mean()
     
     def eval_moving_invariants_train(self, e_s, e_t, resolution=500):
         train_data_s = self.data_provider.train_representation(e_s)
@@ -624,7 +611,7 @@ class Evaluator:
 
     #################################### helper functions #############################################
 
-    def save_epoch_eval(self, n_epoch, n_neighbors, temporal_k=5, save_corrs=False, file_name="evaluation"):
+    def save_epoch_eval(self, n_epoch, n_neighbors, temporal_k=5, file_name="evaluation"):
         # save result
         save_dir = os.path.join(self.data_provider.model_path)
         save_file = os.path.join(save_dir, file_name + ".json")
@@ -636,57 +623,59 @@ class Evaluator:
             f.close()
         n_key = str(n_neighbors)
 
-        if n_key not in evaluation.keys():
-            evaluation[n_key] = dict()
-        if "nn_train" not in evaluation[n_key].keys():
-            evaluation[n_key]["nn_train"] = dict()
-        if "nn_test" not in evaluation[n_key].keys():
-            evaluation[n_key]["nn_test"] = dict()
+        # if n_key not in evaluation.keys():
+        #     evaluation[n_key] = dict()
+        # if "nn_train" not in evaluation[n_key].keys():
+        #     evaluation[n_key]["nn_train"] = dict()
+        # if "nn_test" not in evaluation[n_key].keys():
+        #     evaluation[n_key]["nn_test"] = dict()
         # if "b_train" not in evaluation[n_key].keys():
         #     evaluation[n_key]["b_train"] = dict()
         # if "b_test" not in evaluation[n_key].keys():
         #     evaluation[n_key]["b_test"] = dict()
-        if "ppr_train" not in evaluation.keys():
-            evaluation["ppr_train"] = dict()
-        if "ppr_test" not in evaluation.keys():
-            evaluation["ppr_test"] = dict()
-        if "tnn_train" not in evaluation.keys():
-            evaluation["tnn_train"] = dict()
-        if "tnn_test" not in evaluation.keys():
-            evaluation["tnn_test"] = dict()
+        # if "ppr_train" not in evaluation.keys():
+        #     evaluation["ppr_train"] = dict()
+        # if "ppr_test" not in evaluation.keys():
+        #     evaluation["ppr_test"] = dict()
+        # if "tnn_train" not in evaluation.keys():
+        #     evaluation["tnn_train"] = dict()
+        # if "tnn_test" not in evaluation.keys():
+        #     evaluation["tnn_test"] = dict()
+        if "tr_train" not in evaluation.keys():
+            evaluation["tr_train"] = dict()
+        if "tr_test" not in evaluation.keys():
+            evaluation["tr_test"] = dict()
 
         epoch_key = str(n_epoch)
-        evaluation[n_key]["nn_train"][epoch_key] = self.eval_nn_train(n_epoch, n_neighbors)
-        evaluation[n_key]["nn_test"][epoch_key] = self.eval_nn_test(n_epoch, n_neighbors)
+        # evaluation[n_key]["nn_train"][epoch_key] = self.eval_nn_train(n_epoch, n_neighbors)
+        # evaluation[n_key]["nn_test"][epoch_key] = self.eval_nn_test(n_epoch, n_neighbors)
 
         # evaluation[n_key]["b_train"][epoch_key] = self.eval_b_train(n_epoch, n_neighbors)
         # evaluation[n_key]["b_test"][epoch_key] = self.eval_b_test(n_epoch, n_neighbors)
 
-        evaluation["ppr_train"][epoch_key] = self.eval_inv_train(n_epoch)
-        evaluation["ppr_test"][epoch_key] = self.eval_inv_test(n_epoch)
+        # evaluation["ppr_train"][epoch_key] = self.eval_inv_train(n_epoch)
+        # evaluation["ppr_test"][epoch_key] = self.eval_inv_test(n_epoch)
 
-        if epoch_key not in evaluation["tnn_train"].keys():
-            evaluation["tnn_train"][epoch_key] = dict()
-        if epoch_key not in evaluation["tnn_test"].keys():
-            evaluation["tnn_test"][epoch_key] = dict()
+        # if epoch_key not in evaluation["tnn_train"].keys():
+        #     evaluation["tnn_train"][epoch_key] = dict()
+        # if epoch_key not in evaluation["tnn_test"].keys():
+        #     evaluation["tnn_test"][epoch_key] = dict()
 
-        evaluation["tnn_train"][epoch_key][str(temporal_k)] = self.eval_temporal_nn_train(n_epoch, temporal_k)
-        evaluation["tnn_test"][epoch_key][str(temporal_k)] = self.eval_temporal_nn_test(n_epoch, temporal_k)
-
+        # local temporal
+        # evaluation["tnn_train"][epoch_key][str(temporal_k)] = self.eval_temporal_nn_train(n_epoch, temporal_k)
+        # evaluation["tnn_test"][epoch_key][str(temporal_k)] = self.eval_temporal_nn_test(n_epoch, temporal_k)
+    
+        # global temporal 
+        evaluation["tr_train"][epoch_key] = self.eval_temporal_global_corr_train(n_epoch)
+        evaluation["tr_test"][epoch_key] = self.eval_temporal_global_corr_test(n_epoch)
+        # temporal
+        
         # t_train_val, t_train_std = self.eval_temporal_train(n_neighbors)
         # evaluation[n_key]["temporal_train_mean"] = t_train_val
         # evaluation[n_key]["temporal_train_std"] = t_train_std
         # t_test_val, t_test_std = self.eval_temporal_test(n_neighbors)
         # evaluation[n_key]["temporal_test_mean"] = t_test_val
         # evaluation[n_key]["temporal_test_std"] = t_test_std
-
-        if save_corrs:
-            corrs_train, ps_train = self.eval_temporal_global_corr_train()
-            np.save(os.path.join(save_dir, filename + "_corrs.npy"), corrs_train)
-            np.save(os.path.join(save_dir, filename + "_ps.npy"), ps_train)
-            corrs_test, ps_test = self.eval_temporal_global_corr_test()
-            np.save(os.path.join(save_dir, filename + "_test_corrs.npy"), corrs_test)
-            np.save(os.path.join(save_dir, filename + "_test_ps.npy"), ps_test)
 
         with open(save_file, "w") as f:
             json.dump(evaluation, f)
