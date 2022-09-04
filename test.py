@@ -100,15 +100,15 @@ trainer.load(file_path=os.path.join(data_provider.model_path,"tnn.pth"))
 #                                                       EVALUATION                                                     #
 ########################################################################################################################
 EVAL_EPOCH_DICT = {
-    "mnist_full":[1,2,3,10,15,20],
-    "fmnist_full":[1,2,3,4,5,15,20,25,40,45,50],
-    "cifar10_full":[1,5,10,20,30,100, 150, 190,200]
+    "mnist_full":[1,2,5,10,13,16,20],
+    "fmnist_full":[1,2,6,11,25,30,36,50],
+    "cifar10_full":[1,3,9,18,24,41,70,100,160,200]
 }
 eval_epochs = EVAL_EPOCH_DICT[DATASET]
 
 evaluator = Evaluator(data_provider, trainer)
 
 for eval_epoch in eval_epochs:
-    # evaluator.save_epoch_eval(eval_epoch, 10, temporal_k=3, file_name="test_evaluation_tnn")
+    evaluator.save_epoch_eval(eval_epoch, 10, temporal_k=3, file_name="test_evaluation_tnn")
     evaluator.save_epoch_eval(eval_epoch, 15, temporal_k=5, file_name="test_evaluation_tnn")
-    # evaluator.save_epoch_eval(eval_epoch, 20, temporal_k=7, file_name="test_evaluation_tnn")
+    evaluator.save_epoch_eval(eval_epoch, 20, temporal_k=7, file_name="test_evaluation_tnn")
