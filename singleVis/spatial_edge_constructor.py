@@ -106,6 +106,8 @@ class SpatialEdgeConstructor:
         """
         # get data from graph
         _, vr_head, vr_tail, vr_weight, _ = get_graph_elements(vr_complex, self.s_n_epochs)
+        if self.b_n_epochs == 0:
+            return vr_head, vr_tail, vr_weight
         # get data from graph
         _, bw_head, bw_tail, bw_weight, _ = get_graph_elements(bw_complex, self.b_n_epochs)
 
@@ -114,8 +116,6 @@ class SpatialEdgeConstructor:
         weight = np.concatenate((vr_weight, bw_weight), axis=0)
 
         return head, tail, weight
-        # return vr_head, vr_tail, vr_weight
-    
 
     def construct(self):
         return NotImplemented
@@ -263,14 +263,6 @@ class kcSpatialEdgeConstructor(SpatialEdgeConstructor):
             # load train data and border centers
             train_data = self.data_provider.train_representation(t).squeeze()
 
-            # select highly used border centers...
-            border_centers = self.data_provider.border_representation(t).squeeze()
-            # neigh = NearestNeighbors(n_neighbors=15, radius=0.4)
-            # neigh.fit(border_centers)
-            # high_ind = neigh.kneighbors(train_data, 15, return_distance=False)
-            # selected_borders = np.bincount(high_ind.reshape(-1), minlength=len(border_centers))>100
-            # border_centers = border_centers[selected_borders]
-
             # normalize data by max ||x||_2
             max_x = np.linalg.norm(train_data, axis=1).max()
             train_data = train_data/max_x
@@ -298,16 +290,26 @@ class kcSpatialEdgeConstructor(SpatialEdgeConstructor):
             train_data = train_data[selected_idxs]
 
             t_num = len(selected_idxs)
-            b_num = len(border_centers)
 
-            complex, sigmas_t1, rhos_t1, knn_idxs_t = self._construct_fuzzy_complex(train_data)
-            bw_complex, sigmas_t2, rhos_t2, _ = self._construct_boundary_wise_complex(train_data, border_centers)
-            edge_to_t, edge_from_t, weight_t = self._construct_step_edge_dataset(complex, bw_complex)
-            sigmas_t = np.concatenate((sigmas_t1, sigmas_t2[len(sigmas_t1):]), axis=0)
-            rhos_t = np.concatenate((rhos_t1, rhos_t2[len(rhos_t1):]), axis=0)
-            fitting_data = np.concatenate((train_data, border_centers), axis=0)
-            pred_model = self.data_provider.prediction_function(t)
-            attention_t = get_attention(pred_model, fitting_data, temperature=.01, device=self.data_provider.DEVICE, verbose=1)
+            if self.b_n_epochs>0:
+                border_centers = self.data_provider.border_representation(t).squeeze()
+                b_num = len(border_centers)
+                complex, sigmas_t1, rhos_t1, knn_idxs_t = self._construct_fuzzy_complex(train_data)
+                bw_complex, sigmas_t2, rhos_t2, _ = self._construct_boundary_wise_complex(train_data, border_centers)
+                edge_to_t, edge_from_t, weight_t = self._construct_step_edge_dataset(complex, bw_complex)
+                sigmas_t = np.concatenate((sigmas_t1, sigmas_t2[len(sigmas_t1):]), axis=0)
+                rhos_t = np.concatenate((rhos_t1, rhos_t2[len(rhos_t1):]), axis=0)
+                fitting_data = np.concatenate((train_data, border_centers), axis=0)
+                pred_model = self.data_provider.prediction_function(t)
+                attention_t = get_attention(pred_model, fitting_data, temperature=.01, device=self.data_provider.DEVICE, verbose=1)
+
+            else:
+                b_num = 0
+                complex, sigmas_t, rhos_t, knn_idxs_t = self._construct_fuzzy_complex(train_data)
+                edge_to_t, edge_from_t, weight_t = self._construct_step_edge_dataset(complex, None)
+                fitting_data = np.copy(train_data)
+                pred_model = self.data_provider.prediction_function(t)
+                attention_t = get_attention(pred_model, fitting_data, temperature=.01, device=self.data_provider.DEVICE, verbose=1)
 
             if edge_to is None:
                 edge_to = edge_to_t

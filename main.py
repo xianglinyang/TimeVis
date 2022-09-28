@@ -31,7 +31,7 @@ from singleVis.temporal_edge_constructor import GlobalTemporalEdgeConstructor
 parser = argparse.ArgumentParser(description='Process hyperparameters...')
 parser.add_argument('--content_path', type=str)
 parser.add_argument('-d','--dataset', choices=['online','cifar10', 'mnist', 'fmnist', 'cifar10_full', 'mnist_full', 'fmnist_full'])
-parser.add_argument('-p',"--preprocess", choices=[0,1], default=0)
+parser.add_argument('-p',"--preprocess", type=int, choices=[0,1], default=0)
 parser.add_argument('-g',"--gpu_id", type=int, choices=[0,1,2,3], default=0)
 args = parser.parse_args()
 
@@ -51,6 +51,9 @@ EPOCH_START = config.dataset_config[DATASET]["EPOCH_START"]
 EPOCH_END = config.dataset_config[DATASET]["EPOCH_END"]
 EPOCH_PERIOD = config.dataset_config[DATASET]["EPOCH_PERIOD"]
 HIDDEN_LAYER = config.dataset_config[DATASET]["HIDDEN_LAYER"]
+VIS_MODEL_NAME = config.dataset_config[DATASET]["VIS_MODEL_NAME"]
+EVAL_NAME = config.dataset_config[DATASET]["EVAL_NAME"]
+
 
 # define hyperparameters
 DEVICE = torch.device("cuda:{:d}".format(GPU_ID) if torch.cuda.is_available() else "cpu")
@@ -105,7 +108,7 @@ edge_from = edge_from[eliminate_zeros]
 probs = probs[eliminate_zeros]
 
 # save result
-save_dir = os.path.join(data_provider.model_path, "SV_time_tnn.json")
+save_dir = os.path.join(data_provider.model_path, "SV_time_{}.json".format(VIS_MODEL_NAME))
 if not os.path.exists(save_dir):
     evaluation = dict()
 else:
@@ -137,7 +140,7 @@ t2=time.time()
 trainer.train(PATIENT, MAX_EPOCH)
 t3 = time.time()
 # save result
-save_dir = os.path.join(data_provider.model_path, "SV_time_tnn.json")
+save_dir = os.path.join(data_provider.model_path, "SV_time_{}.json".format(VIS_MODEL_NAME))
 if not os.path.exists(save_dir):
     evaluation = dict()
 else:
@@ -147,26 +150,35 @@ else:
 evaluation["training"] = round(t3-t2, 3)
 with open(save_dir, 'w') as f:
     json.dump(evaluation, f)
-trainer.save(save_dir=data_provider.model_path, file_name="tnn")
-# trainer.load(file_path=os.path.join(data_provider.model_path,"SV.pth"))
+trainer.save(save_dir=data_provider.model_path, file_name="{}".format(VIS_MODEL_NAME))
+# trainer.load(file_path=os.path.join(data_provider.model_path,"{}.pth".format(VIS_MODEL_NAME)))
 
 ########################################################################################################################
 #                                                      VISUALIZATION                                                   #
 ########################################################################################################################
 
-from singleVis.visualizer import visualizer
+# from singleVis.visualizer import visualizer
 
-vis = visualizer(data_provider, trainer.model, 200, 10, classes)
-save_dir = os.path.join(data_provider.content_path, "img")
-if not os.path.exists(save_dir):
-    os.mkdir(save_dir)
-for i in range(EPOCH_START, EPOCH_END+1, EPOCH_PERIOD):
-    vis.savefig(i, path=os.path.join(save_dir, "{}_{}_tnn.png".format(DATASET, i)))
+# vis = visualizer(data_provider, trainer.model, 200, 10, classes)
+# save_dir = os.path.join(data_provider.content_path, "img")
+# if not os.path.exists(save_dir):
+#     os.mkdir(save_dir)
+# for i in range(EPOCH_START, EPOCH_END+1, EPOCH_PERIOD):
+#     vis.savefig(i, path=os.path.join(save_dir, "{}_{}_tnn.png".format(DATASET, i)))
 
     
 ########################################################################################################################
 #                                                       EVALUATION                                                     #
 ########################################################################################################################
 
+EVAL_EPOCH_DICT = {
+    "mnist_full":[1,2,5,10,13,16,20],
+    "fmnist_full":[1,2,6,11,25,30,36,50],
+    "cifar10_full":[1,3,9,18,24,41,70,100,160,200]
+}
+eval_epochs = EVAL_EPOCH_DICT[DATASET]
+
 evaluator = Evaluator(data_provider, trainer)
-evaluator.save_eval(n_neighbors=15, file_name="test_evaluation_tnn")
+
+for eval_epoch in eval_epochs:
+    evaluator.save_epoch_eval(eval_epoch, 15, temporal_k=5, file_name="{}".format(EVAL_NAME))

@@ -44,6 +44,9 @@ EPOCH_END = config.dataset_config[DATASET]["EPOCH_END"]
 EPOCH_PERIOD = config.dataset_config[DATASET]["EPOCH_PERIOD"]
 HIDDEN_LAYER = config.dataset_config[DATASET]["HIDDEN_LAYER"]
 
+VIS_MODEL_NAME = config.dataset_config[DATASET]["VIS_MODEL_NAME"]
+EVAL_NAME = config.dataset_config[DATASET]["EVAL_NAME"]
+
 # define hyperparameters
 DEVICE = torch.device("cuda:{:d}".format(GPU_ID) if torch.cuda.is_available() else "cpu")
 S_N_EPOCHS = config.dataset_config[DATASET]["training_config"]["S_N_EPOCHS"]
@@ -82,7 +85,7 @@ lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=.1)
 
 
 trainer = SingleVisTrainer(model, criterion=criterion, optimizer=optimizer, lr_scheduler=lr_scheduler, edge_loader=None, DEVICE=DEVICE)
-trainer.load(file_path=os.path.join(data_provider.model_path,"tnn.pth"))
+trainer.load(file_path=os.path.join(data_provider.model_path,"{}.pth".format(VIS_MODEL_NAME)))
 
 ########################################################################################################################
 #                                                      VISUALIZATION                                                   #
@@ -109,6 +112,6 @@ eval_epochs = EVAL_EPOCH_DICT[DATASET]
 evaluator = Evaluator(data_provider, trainer)
 
 for eval_epoch in eval_epochs:
-    evaluator.save_epoch_eval(eval_epoch, 10, temporal_k=3, file_name="test_evaluation_tnn")
-    evaluator.save_epoch_eval(eval_epoch, 15, temporal_k=5, file_name="test_evaluation_tnn")
-    evaluator.save_epoch_eval(eval_epoch, 20, temporal_k=7, file_name="test_evaluation_tnn")
+    # evaluator.save_epoch_eval(eval_epoch, 10, temporal_k=3, file_name="{}".format(EVAL_NAME))
+    evaluator.save_epoch_eval(eval_epoch, 15, temporal_k=5, file_name="{}".format(EVAL_NAME))
+    # evaluator.save_epoch_eval(eval_epoch, 20, temporal_k=7, file_name="{}".format(EVAL_NAME))

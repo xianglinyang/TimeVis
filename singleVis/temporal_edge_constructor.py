@@ -262,8 +262,8 @@ class GlobalTemporalEdgeConstructor(TemporalEdgeConstructor):
 
         for time_step in range(self.time_steps):
             start_idx = base_idx_list[time_step]
-            end_idx = start_idx + self.time_step_nums[time_step][0]
-            # move_positions = [i - start_idx for i in base_idx_list]
+            end_idx = start_idx + self.time_step_nums[time_step][0] - 1
+
             move_positions = base_idx_list - start_idx
             for train_sample_idx in range(start_idx, end_idx + 1, 1):
                 # candidate_idxs = [train_sample_idx + i for i in move_positions if train_sample_idx + i < valid_idx]
