@@ -22,7 +22,7 @@ from singleVis.eval.evaluator import Evaluator
 parser = argparse.ArgumentParser(description='Process hyperparameters...')
 parser.add_argument('--content_path', type=str)
 parser.add_argument('-d','--dataset', choices=['online','cifar10', 'mnist', 'fmnist', 'cifar10_full', 'mnist_full', 'fmnist_full'])
-parser.add_argument('-p',"--preprocess", choices=[0,1], default=0)
+parser.add_argument('-p',"--preprocess", choices=[0,1], type=int,default=0)
 parser.add_argument('-g',"--gpu_id", type=int, choices=[0,1,2,3], default=0)
 args = parser.parse_args()
 
@@ -91,27 +91,30 @@ trainer.load(file_path=os.path.join(data_provider.model_path,"{}.pth".format(VIS
 #                                                      VISUALIZATION                                                   #
 ########################################################################################################################
 
-# from singleVis.visualizer import visualizer
+from singleVis.visualizer import visualizer
 
-# vis = visualizer(data_provider, trainer.model, 200, 10, classes)
-# save_dir = os.path.join(data_provider.content_path, "img")
-# if not os.path.exists(save_dir):
-#     os.mkdir(save_dir)
-# for i in range(EPOCH_START, EPOCH_END+1, EPOCH_PERIOD):
-#     vis.savefig(i, path=os.path.join(save_dir, "{}_{}_tnn.png".format(DATASET, i)))
+vis = visualizer(data_provider, trainer.model, 200, 10, classes)
+save_dir = os.path.join(data_provider.content_path, "img")
+if not os.path.exists(save_dir):
+    os.mkdir(save_dir)
+for i in range(EPOCH_START, EPOCH_END+1, EPOCH_PERIOD):
+    vis.save_default_fig(i, path=os.path.join(save_dir, "{}_{}_tnn.png".format(DATASET, i)))
 ########################################################################################################################
 #                                                       EVALUATION                                                     #
 ########################################################################################################################
 EVAL_EPOCH_DICT = {
-    "mnist_full":[1,2,5,10,13,16,20],
-    "fmnist_full":[1,2,6,11,25,30,36,50],
-    "cifar10_full":[1,3,9,18,24,41,70,100,160,200]
+    # "mnist_full":[1,2,5,10,13,16,20],
+    "mnist_full":[1,10,15],
+    # "fmnist_full":[1,2,6,11,25,30,36,50],
+    "fmnist_full":[1,25,50],
+    # "cifar10_full":[1,3,9,18,24,41,70,100,160,200],
+    "cifar10_full":[1,100,199]
 }
 eval_epochs = EVAL_EPOCH_DICT[DATASET]
 
 evaluator = Evaluator(data_provider, trainer)
 
 for eval_epoch in eval_epochs:
-    # evaluator.save_epoch_eval(eval_epoch, 10, temporal_k=3, file_name="{}".format(EVAL_NAME))
-    evaluator.save_epoch_eval(eval_epoch, 15, temporal_k=5, file_name="{}".format(EVAL_NAME))
-    # evaluator.save_epoch_eval(eval_epoch, 20, temporal_k=7, file_name="{}".format(EVAL_NAME))
+    evaluator.save_epoch_eval(eval_epoch, 10, temporal_k=5, file_name="{}".format(EVAL_NAME))
+    evaluator.save_epoch_eval(eval_epoch, 15, temporal_k=10, file_name="{}".format(EVAL_NAME))
+    evaluator.save_epoch_eval(eval_epoch, 20, temporal_k=15, file_name="{}".format(EVAL_NAME))
