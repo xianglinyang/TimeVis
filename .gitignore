@@ -129,3 +129,8 @@ dmypy.json
 .pyre/
 
 data/
+
+# metadata
+singleVis/plot/new_plot_results
+singleVis/plot/plot_results/*
+
