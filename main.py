@@ -40,6 +40,7 @@ DATASET = args.dataset
 PREPROCESS = args.preprocess
 GPU_ID = args.gpu_id
 
+NET = config.dataset_config[DATASET]["NET"]
 LEN = config.dataset_config[DATASET]["TRAINING_LEN"]
 LAMBDA = config.dataset_config[DATASET]["LAMBDA"]
 L_BOUND = config.dataset_config[DATASET]["L_BOUND"]
@@ -51,8 +52,11 @@ EPOCH_START = config.dataset_config[DATASET]["EPOCH_START"]
 EPOCH_END = config.dataset_config[DATASET]["EPOCH_END"]
 EPOCH_PERIOD = config.dataset_config[DATASET]["EPOCH_PERIOD"]
 HIDDEN_LAYER = config.dataset_config[DATASET]["HIDDEN_LAYER"]
-VIS_MODEL_NAME = config.dataset_config[DATASET]["VIS_MODEL_NAME"]
-EVAL_NAME = config.dataset_config[DATASET]["EVAL_NAME"]
+# VIS_MODEL_NAME = config.dataset_config[DATASET]["VIS_MODEL_NAME"]
+# EVAL_NAME = config.dataset_config[DATASET]["EVAL_NAME"]
+VIS_MODEL_NAME = "timevis"
+EVAL_NAME = "timevis"
+
 
 
 # define hyperparameters
@@ -67,8 +71,8 @@ MAX_EPOCH = config.dataset_config[DATASET]["training_config"]["MAX_EPOCH"]
 content_path = CONTENT_PATH
 sys.path.append(content_path)
 
-from Model.model import *
-net = resnet18()
+import Model.model as subject_model
+net = eval("subject_model.{}()".format(NET))
 classes = ("airplane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck")
 
 
@@ -77,7 +81,10 @@ classes = ("airplane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "sh
 ########################################################################################################################
 data_provider = DataProvider(content_path, net, EPOCH_START, EPOCH_END, EPOCH_PERIOD, split=-1, device=DEVICE, verbose=1)
 if PREPROCESS:
-    data_provider.initialize(LEN//10, l_bound=L_BOUND)
+    data_provider._meta_data()
+    if B_N_EPOCHS >0:
+        data_provider._estimate_boundary(LEN//10, l_bound=L_BOUND)
+
 
 model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256, hidden_layer=HIDDEN_LAYER)
 negative_sample_rate = 5
