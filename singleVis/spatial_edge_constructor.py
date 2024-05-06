@@ -217,7 +217,16 @@ class kcSpatialEdgeConstructor(SpatialEdgeConstructor):
         # _,_ = hausdorff_dist_cus(data, idxs)
 
         id = IntrinsicDim(data)
-        d0 = id.twonn_dimension_fast()
+        try:
+            print('Using two nn dimension fast')
+            d0 = id.twonn_dimension_fast()
+        except:
+            print("Using estimate fast")
+            d0 = id.estimate_id_fast()
+        else:
+            print('Using two nn dimension')
+            d0 = id.twonn_dimension()
+
         # d0 = twonn_dimension_fast(data)
 
         kc = kCenterGreedy(data)
