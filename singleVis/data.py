@@ -78,12 +78,13 @@ class DataProvider:
                 test_index = range(len(testing_data))
             testing_data = testing_data[test_index]
 
-            model_location = os.path.join(self.model_path, "Epoch_{:d}".format(n_epoch), "subject_model.pth")
-            self.model.load_state_dict(torch.load(model_location, map_location=torch.device("cpu")))
-            self.model = self.model.to(self.DEVICE)
-            self.model.eval()
-
-            repr_model = torch.nn.Sequential(*(list(self.model.children())[:self.split]))
+            # model_location = os.path.join(self.model_path, "Epoch_{:d}".format(n_epoch), "subject_model.pth")
+            # self.model.load_state_dict(torch.load(model_location, map_location=torch.device("cpu")))
+            # self.model = self.model.to(self.DEVICE)
+            # self.model.eval()
+            # repr_model = torch.nn.Sequential(*(list(self.model.children())[:self.split]))
+            repr_model = self.feature_function(n_epoch)
+            
 
             # training data clustering
             data_pool_representation = batch_run(repr_model, training_data)
@@ -285,10 +286,8 @@ class DataProvider:
         self.model = self.model.to(self.DEVICE)
         self.model.eval()
 
-        model = torch.nn.Sequential(*(list(self.model.children())[self.split:]))
-        model = model.to(self.DEVICE)
-        model = model.eval()
-        return model
+        pred_fn = self.model.prediction
+        return pred_fn
 
     def feature_function(self, epoch):
         model_location = os.path.join(self.model_path, "Epoch_{:d}".format(epoch), "subject_model.pth")
@@ -296,10 +295,8 @@ class DataProvider:
         self.model = self.model.to(self.DEVICE)
         self.model.eval()
 
-        model = torch.nn.Sequential(*(list(self.model.children())[:self.split]))
-        model = model.to(self.DEVICE)
-        model = model.eval()
-        return model
+        fea_fn = self.model.feature
+        return fea_fn
 
     def get_pred(self, epoch, data):
         '''
